@@ -8,7 +8,7 @@ const QUERY_TIMEOUT_MS = parseInt(process.env.QUERY_TIMEOUT_MS || '5000', 10);
 // Reject obviously dangerous DDL/DCL outside the explicit reset path.
 const BLOCKED_KEYWORDS = /\b(DROP\s+DATABASE|CREATE\s+DATABASE|ALTER\s+DATABASE|SHUTDOWN|xp_cmdshell|sp_configure|BULK\s+INSERT|OPENROWSET|OPENDATASOURCE)\b/i;
 
-async function runQuery(rawSql) {
+async function runQuery(rawSql, externalPool) {
   if (!rawSql || typeof rawSql !== 'string') {
     throw new Error('Query must be a non-empty string.');
   }
@@ -21,7 +21,7 @@ async function runQuery(rawSql) {
     throw new Error('Query contains a disallowed command. Only data queries are permitted.');
   }
 
-  const pool = await getPool();
+  const pool = externalPool || await getPool();
   const request = pool.request();
   request.timeout = QUERY_TIMEOUT_MS;
 

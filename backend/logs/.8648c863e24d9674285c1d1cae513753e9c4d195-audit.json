@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/root/sql-playground/backend/logs/.8648c863e24d9674285c1d1cae513753e9c4d195-audit.json",
+    "files": [
+        {
+            "date": 1781507920332,
+            "name": "/root/sql-playground/backend/logs/error-2026-06-15.log",
+            "hash": "3c4fd7d8c8ff9fb97fd1894ac310f6b6f5d80137b7bfae197d11935cbd4d467e"
+        }
+    ],
+    "hashType": "sha256"
+}
