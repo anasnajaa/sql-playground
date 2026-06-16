@@ -9,7 +9,7 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import LogoutIcon from '@mui/icons-material/Logout';
 import LoginIcon from '@mui/icons-material/Login';
-import { darkTheme } from '../theme';
+import { darkTheme } from '../../theme';
 
 const STORAGE_KEY = 'sql_admin_token';
 

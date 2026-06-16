@@ -36,6 +36,7 @@ const darkThemeOverride = EditorView.theme({
 const baseTheme = EditorView.theme({
   '&': { height: '100%', fontSize: '13px' },
   '.cm-scroller': { fontFamily: 'var(--font-mono)', lineHeight: '1.7', overflow: 'auto' },
+  '.cm-content': { fontWeight: 'bold' },
 });
 
 function themeExtension(isDark) {

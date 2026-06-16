@@ -6,8 +6,8 @@ import {
 } from '@mui/material';
 import LoginIcon from '@mui/icons-material/Login';
 import SchoolIcon from '@mui/icons-material/School';
-import { darkTheme } from '../theme';
-import { studentLogin, fetchOrgs, fetchPublicSemesters, fetchPublicCourses } from '../api/client';
+import { darkTheme } from '../../theme';
+import { studentLogin, fetchOrgs, fetchPublicSemesters, fetchPublicCourses } from '../../api/client';
 
 const JWT_KEY = 'sql_student_jwt';
 
@@ -89,7 +89,7 @@ export default function StudentLoginPage() {
           <Stack direction="row" alignItems="center" spacing={1.5} mb={3}>
             <SchoolIcon color="primary" fontSize="large" />
             <Box>
-              <Typography variant="h6" fontWeight={700} lineHeight={1.2}>Student Login</Typography>
+              <Typography variant="h6" fontWeight={700} lineHeight={3}>Student Login</Typography>
               <Typography variant="caption" color="text.secondary">SQL Online Compiler</Typography>
             </Box>
           </Stack>

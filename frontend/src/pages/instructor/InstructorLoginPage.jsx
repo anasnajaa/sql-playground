@@ -7,8 +7,8 @@ import {
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { darkTheme } from '../theme';
-import { requestInstructorOtp, verifyInstructorOtp, fetchOrgs } from '../api/client';
+import { darkTheme } from '../../theme';
+import { requestInstructorOtp, verifyInstructorOtp, fetchOrgs } from '../../api/client';
 
 const JWT_KEY = 'sql_instructor_jwt';
 
@@ -76,7 +76,7 @@ export default function InstructorLoginPage() {
           <Stack direction="row" alignItems="center" spacing={1.5} mb={3}>
             <LockOpenIcon color="primary" fontSize="large" />
             <Box>
-              <Typography variant="h6" fontWeight={700} lineHeight={1.2}>Instructor Login</Typography>
+              <Typography variant="h6" fontWeight={700} lineHeight={3}>Instructor Login</Typography>
               <Typography variant="caption" color="text.secondary">SQL Online Compiler</Typography>
             </Box>
           </Stack>

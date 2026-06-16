@@ -7,6 +7,10 @@ import {
   Alert, CircularProgress, Tooltip, Dialog, DialogTitle,
   DialogContent, DialogContentText, DialogActions, LinearProgress,
 } from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
+import CloudIcon from '@mui/icons-material/Cloud';
+import DnsIcon from '@mui/icons-material/Dns';
 import HomeIcon from '@mui/icons-material/Home';
 import LogoutIcon from '@mui/icons-material/Logout';
 import GroupIcon from '@mui/icons-material/Group';
@@ -17,13 +21,16 @@ import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
-import { darkTheme } from '../theme';
+import StorageIcon from '@mui/icons-material/Storage';
+import MemoryIcon from '@mui/icons-material/Memory';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import { darkTheme } from '../../theme';
 import {
   fetchInstructorCourses, fetchInstructorSemesters, fetchInstructorStudents,
   importCsv, sendStudentPassword, bulkSendPasswords, bulkResetDbs,
   bulkDeleteStudents, resetStudentDb,
-  adminResetGuestDb, adminHealth,
-} from '../api/client';
+  adminResetGuestDb, adminHealth, fetchStatus,
+} from '../../api/client';
 
 const JWT_KEY = 'sql_instructor_jwt';
 
@@ -63,6 +70,11 @@ export default function InstructorDashboard() {
   const [adminResetting,  setAdminResetting]  = useState(false);
   const [adminStatus,     setAdminStatus]     = useState(null);
   const [adminDbStatus,   setAdminDbStatus]   = useState(null);
+  // Status tab
+  const [statusData,    setStatusData]    = useState(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [statusError,   setStatusError]   = useState(null);
+  const [statusLastAt,  setStatusLastAt]  = useState(null);
   // Confirm dialog
   const [confirm, setConfirm] = useState(null); // { title, text, onConfirm }
 
@@ -87,6 +99,19 @@ export default function InstructorDashboard() {
   }, [token, filterCourse, filterSemester]);
 
   useEffect(() => { loadStudents(); }, [loadStudents]);
+
+  const loadStatus = useCallback(async () => {
+    setStatusLoading(true); setStatusError(null);
+    try {
+      const d = await fetchStatus();
+      setStatusData(d); setStatusLastAt(new Date());
+    } catch (e) { setStatusError(e.message || 'Failed to load status.'); }
+    finally { setStatusLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (tab === 2) loadStatus();
+  }, [tab, loadStatus]);
 
   function ask(title, text, onConfirm) { setConfirm({ title, text, onConfirm }); }
 
@@ -213,6 +238,7 @@ export default function InstructorDashboard() {
           <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
             <Tab icon={<GroupIcon />} iconPosition="start" label="Students" />
             <Tab icon={<UploadFileIcon />} iconPosition="start" label="Import CSV" />
+            <Tab icon={<MonitorHeartIcon />} iconPosition="start" label="Server Status" />
             {isAdmin && <Tab icon={<AdminPanelSettingsIcon />} iconPosition="start" label="Admin" />}
           </Tabs>
 
@@ -398,9 +424,158 @@ export default function InstructorDashboard() {
               </Alert>
             )}
           </TabPanel>
+          {/* ── Status Tab ───────────────────────── */}
+          <TabPanel value={tab} index={2}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6" fontWeight={700}>Server Status</Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                {statusLastAt && (
+                  <Typography variant="caption" color="text.secondary">
+                    Updated {statusLastAt.toLocaleTimeString()}
+                  </Typography>
+                )}
+                <Tooltip title="Refresh">
+                  <IconButton size="small" onClick={loadStatus} disabled={statusLoading}>
+                    <RefreshIcon fontSize="small" sx={statusLoading ? { animation: 'spin 0.7s linear infinite' } : {}} />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            </Stack>
+            {statusLoading && !statusData && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
+            {statusError && <Alert severity="error" sx={{ mb: 2 }}>{statusError}</Alert>}
+            {statusData && (() => {
+              const d = statusData;
+              const fmtUptime = s => {
+                const dd = Math.floor(s / 86400), hh = Math.floor((s % 86400) / 3600),
+                      mm = Math.floor((s % 3600) / 60), ss = s % 60;
+                if (dd > 0) return `${dd}d ${hh}h ${mm}m`;
+                if (hh > 0) return `${hh}h ${mm}m ${ss}s`;
+                return `${mm}m ${ss}s`;
+              };
+              const StatusChip = ({ ok, label }) => (
+                <Chip
+                  icon={ok ? <CheckCircleIcon /> : <ErrorIcon />}
+                  label={label} color={ok ? 'success' : 'error'}
+                  size="small" variant="outlined"
+                />
+              );
+              const SRow = ({ label, value }) => (
+                <Stack direction="row" justifyContent="space-between" alignItems="center"
+                  sx={{ py: 0.4, borderBottom: 1, borderColor: 'divider', '&:last-child': { border: 0 } }}>
+                  <Typography variant="caption" color="text.secondary">{label}</Typography>
+                  <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>{value}</Typography>
+                </Stack>
+              );
+              const SCard = ({ icon, title, children }) => (
+                <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
+                  <Stack direction="row" alignItems="center" spacing={1} mb={1.5}>
+                    <Box sx={{ color: 'primary.main' }}>{icon}</Box>
+                    <Typography variant="subtitle2" fontWeight={700}>{title}</Typography>
+                  </Stack>
+                  {children}
+                </Paper>
+              );
+              return (
+                <>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap mb={3}>
+                    <StatusChip ok={d.mssql.ok}  label={`MSSQL: ${d.mssql.ok  ? 'Connected' : 'Error'}`} />
+                    <StatusChip ok={d.mongo.ok}  label={`MongoDB: ${d.mongo.ok ? 'Connected' : 'Error'}`} />
+                    <StatusChip ok={d.docker.ok} label={`Docker: ${d.docker.ok ? 'OK' : 'Error'}`} />
+                  </Stack>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <SCard icon={<MemoryIcon />} title="System">
+                        <SRow label="Hostname"  value={d.system.hostname} />
+                        <SRow label="Platform"  value={d.system.platform} />
+                        <SRow label="Node.js"   value={d.system.nodeVersion} />
+                        <SRow label="Uptime"    value={fmtUptime(d.system.uptime)} />
+                        <SRow label="CPU Cores" value={d.system.cpu.cores} />
+                        <SRow label="CPU Model" value={d.system.cpu.model} />
+                        <SRow label="Load 1m"   value={d.system.cpu.loadAvg1m} />
+                        <SRow label="Load 5m"   value={d.system.cpu.loadAvg5m} />
+                      </SCard>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <SCard icon={<StorageIcon />} title="Memory">
+                        <SRow label="Total" value={`${d.system.memory.totalMb} MB`} />
+                        <SRow label="Used"  value={`${d.system.memory.usedMb} MB`} />
+                        <SRow label="Free"  value={`${d.system.memory.freeMb} MB`} />
+                        <Box sx={{ mt: 1.5 }}>
+                          <Stack direction="row" justifyContent="space-between" mb={0.5}>
+                            <Typography variant="caption" color="text.secondary">Usage</Typography>
+                            <Typography variant="caption">{d.system.memory.usedPct}%</Typography>
+                          </Stack>
+                          <LinearProgress
+                            variant="determinate" value={d.system.memory.usedPct}
+                            color={d.system.memory.usedPct > 85 ? 'error' : 'primary'}
+                            sx={{ borderRadius: 1, height: 8 }}
+                          />
+                        </Box>
+                      </SCard>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <SCard icon={<StorageIcon />} title="MSSQL">
+                        <Stack mb={1}><StatusChip ok={d.mssql.ok} label={d.mssql.ok ? 'Connected' : 'Unreachable'} /></Stack>
+                        {d.mssql.ok && <>
+                          <SRow label="Version"  value={d.mssql.version} />
+                          <SRow label="Edition"  value={d.mssql.edition} />
+                          <SRow label="Latency"  value={`${d.mssql.latencyMs} ms`} />
+                          <SRow label="User DBs" value={d.mssql.userDbs} />
+                        </>}
+                        {d.mssql.error && <Typography variant="caption" color="error.main">{d.mssql.error}</Typography>}
+                      </SCard>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <SCard icon={<CloudIcon />} title="MongoDB">
+                        <Stack mb={1}><StatusChip ok={d.mongo.ok} label={d.mongo.ok ? 'Connected' : (d.mongo.state || 'Error')} /></Stack>
+                        {d.mongo.ok && <>
+                          <SRow label="Latency" value={`${d.mongo.latencyMs} ms`} />
+                          <SRow label="State"   value={d.mongo.state} />
+                        </>}
+                        {d.mongo.error && <Typography variant="caption" color="error.main">{d.mongo.error}</Typography>}
+                      </SCard>
+                    </Grid>
+                    <Grid item xs={12} md={8}>
+                      <SCard icon={<DnsIcon />} title="Docker Containers">
+                        {d.docker.ok ? (
+                          d.docker.containers.length === 0
+                            ? <Typography variant="caption" color="text.secondary">No running containers.</Typography>
+                            : (
+                              <TableContainer>
+                                <Table size="small">
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableCell>Name</TableCell>
+                                      <TableCell>Image</TableCell>
+                                      <TableCell>Status</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {d.docker.containers.map((c, i) => (
+                                      <TableRow key={i}>
+                                        <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{c.name}</TableCell>
+                                        <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{c.image}</TableCell>
+                                        <TableCell><StatusChip ok={c.status?.startsWith('Up')} label={c.status} /></TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </TableContainer>
+                            )
+                        ) : (
+                          <Typography variant="caption" color="error.main">{d.docker.error || 'Docker unavailable'}</Typography>
+                        )}
+                      </SCard>
+                    </Grid>
+                  </Grid>
+                </>
+              );
+            })()}
+          </TabPanel>
+
           {/* ── Admin Tab (a.najaa only) ─────────── */}
           {isAdmin && (
-            <TabPanel value={tab} index={2}>
+            <TabPanel value={tab} index={3}>
               <Typography variant="h6" fontWeight={700} mb={2}>Admin — Guest Database</Typography>
               <Stack spacing={2} maxWidth={480}>
                 <Stack direction="row" spacing={1.5}>

@@ -1,12 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
-import AdminPage from './components/AdminPage';
-import ErdPage from './components/ErdPage';
-import StudentLoginPage from './components/StudentLoginPage';
-import InstructorLoginPage from './components/InstructorLoginPage';
-import InstructorDashboard from './components/InstructorDashboard';
-import StatusPage from './components/StatusPage';
+import App from './pages/guest/App';
+import ErdPage from './pages/guest/ErdPage';
+import StudentLoginPage from './pages/student/StudentLoginPage';
+import InstructorLoginPage from './pages/instructor/InstructorLoginPage';
+import InstructorDashboard from './pages/instructor/InstructorDashboard';
+import StatusPage from './pages/instructor/StatusPage';
+import AdminPage from './pages/instructor/AdminPage';
 import './index.css';
 
 const path = window.location.pathname;

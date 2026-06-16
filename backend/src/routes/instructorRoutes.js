@@ -103,43 +103,65 @@ router.post('/import', upload.single('file'), async (req, res) => {
     const studentId = email.split('@')[0];
     const dbName    = buildDbName(req.user.org, semesterShortCode, courseCode, studentId);
 
-    // Skip if this exact enrollment already exists
+    // Skip if this exact enrollment already exists (and is NOT soft-deleted)
     const exists = await ModelStudentCourse.findOne({
       emailaddress:      email,
       courseCode:        courseCode.toUpperCase(),
       semesterShortCode: semesterShortCode,
+      deleted:           { $ne: true },
     }).lean();
 
     if (exists) { results.skipped++; continue; }
 
+    // If a soft-deleted record exists, restore it instead of creating a new one
+    const deleted = await ModelStudentCourse.findOne({
+      emailaddress:      email,
+      courseCode:        courseCode.toUpperCase(),
+      semesterShortCode: semesterShortCode,
+      deleted:           true,
+    }).lean();
+
     try {
       const plainPassword = generatePassword();
       const hashedPw      = await hashPassword(plainPassword);
+      const loginName     = studentId.replace(/[^a-zA-Z0-9_]/g, '_');
 
-      // Determine next stCourseAId
-      const last = await ModelStudentCourse.findOne().sort({ stCourseAId: -1 }).lean();
-      const nextId = (last?.stCourseAId || 0) + 1;
+      if (deleted) {
+        // Restore the soft-deleted record with a fresh password
+        await ModelStudentCourse.findByIdAndUpdate(deleted._id, {
+          firstname,
+          surname,
+          password:          hashedPw,
+          plaintextPassword: plainPassword,
+          dbName,
+          active:            true,
+          deleted:           false,
+        });
+      } else {
+        // Determine next stCourseAId
+        const last = await ModelStudentCourse.findOne().sort({ stCourseAId: -1 }).lean();
+        const nextId = (last?.stCourseAId || 0) + 1;
 
-      // Persist to MongoDB
-      await ModelStudentCourse.create({
-        stCourseAId:       nextId,
-        instAid:           req.user.instAid,
-        organization:      req.user.org,
-        firstname,
-        surname,
-        emailaddress:      email,
-        password:          hashedPw,
-        plaintextPassword: plainPassword,
-        dbName,
-        courseCode:        courseCode.toUpperCase(),
-        semesterShortCode: semesterShortCode,
-        active:            true,
-        deleted:           false,
-      });
+        // Persist to MongoDB
+        await ModelStudentCourse.create({
+          stCourseAId:       nextId,
+          instAid:           req.user.instAid,
+          organization:      req.user.org,
+          firstname,
+          surname,
+          emailaddress:      email,
+          password:          hashedPw,
+          plaintextPassword: plainPassword,
+          dbName,
+          courseCode:        courseCode.toUpperCase(),
+          semesterShortCode: semesterShortCode,
+          active:            true,
+          deleted:           false,
+        });
+      }
 
-      // Provision MSSQL database + login
+      // Provision MSSQL database + login (createStudentDb is idempotent)
       await createStudentDb(dbName);
-      const loginName = studentId.replace(/[^a-zA-Z0-9_]/g, '_');
       await createStudentMssqlLogin(loginName, plainPassword, dbName);
 
       results.created++;

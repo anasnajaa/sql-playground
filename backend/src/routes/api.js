@@ -65,6 +65,14 @@ router.post('/reset', (req, res) => {
   res.status(403).json({ ok: false, error: 'Reset is disabled. Contact the administrator.' });
 });
 
+// GET /api/ip — returns the client's IP address (for screenshot watermark)
+router.get('/ip', (req, res) => {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0].trim()
+          || req.socket?.remoteAddress
+          || 'unknown';
+  res.json({ ip });
+});
+
 // GET /api/health
 router.get('/health', async (req, res) => {
   try {

@@ -13,8 +13,8 @@ import MemoryIcon from '@mui/icons-material/Memory';
 import StorageIcon from '@mui/icons-material/Storage';
 import CloudIcon from '@mui/icons-material/Cloud';
 import DnsIcon from '@mui/icons-material/Dns';
-import { darkTheme } from '../theme';
-import { fetchStatus } from '../api/client';
+import { darkTheme } from '../../theme';
+import { fetchStatus } from '../../api/client';
 
 function StatusChip({ ok, label }) {
   return (
@@ -59,6 +59,11 @@ function fmtUptime(s) {
 }
 
 export default function StatusPage() {
+  if (!localStorage.getItem('sql_instructor_jwt')) {
+    window.location.href = '/instructor/login';
+    return null;
+  }
+
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
