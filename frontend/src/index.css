@@ -90,7 +90,7 @@ body {
   overflow: hidden;
 }
 .main.with-schema {
-  grid-template-columns: 1fr 260px;
+  grid-template-columns: 1fr 340px;
   grid-template-rows: auto 1fr;
 }
 
@@ -221,7 +221,7 @@ body {
 
 .results-table {
   border-collapse: collapse; width: 100%;
-  font-size: 13px; font-family: var(--font-mono);
+  font-size: 15px; font-family: var(--font-mono);
 }
 .results-table th,
 .results-table td {
@@ -230,8 +230,9 @@ body {
 }
 .results-table th {
   background: var(--surface2); color: var(--accent);
-  font-weight: 600; position: sticky; top: 0;
+  font-weight: 700; position: sticky; top: 0;
 }
+.results-table td { font-weight: 500; }
 .results-table tr:hover td { background: var(--surface2); }
 
 .null-val { color: var(--text-muted); font-style: italic; }

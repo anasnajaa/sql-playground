@@ -55,17 +55,21 @@ export const fetchPublicCourses   = (sem)  => get(`/auth/courses?semesterShortCo
 // ── Instructor ───────────────────────────────────────────────────────────
 export const fetchInstructorCourses   = (t) => get('/instructor/courses', t);
 export const fetchInstructorSemesters = (t) => get('/instructor/semesters', t);
-export const fetchInstructorStudents  = (t, courseCode, semesterShortCode) =>
-  get(`/instructor/students?courseCode=${encodeURIComponent(courseCode)}&semesterShortCode=${encodeURIComponent(semesterShortCode)}`, t);
+export const fetchInstructorStudents  = (t, courseCode, semesterShortCode) => {
+  const params = new URLSearchParams({ semesterShortCode });
+  if (courseCode) params.set('courseCode', courseCode);
+  return get(`/instructor/students?${params}`, t);
+};
 export const importStudent = (t, data) => post('/instructor/import/student', data, t);
 export const fetchCourseSettings  = (t, courseCode, semesterShortCode) =>
   get(`/instructor/course-settings?courseCode=${encodeURIComponent(courseCode)}&semesterShortCode=${encodeURIComponent(semesterShortCode)}`, t);
 export const updateCourseSettings = (t, courseCode, semesterShortCode, connStringEnabled) =>
   post('/instructor/course-settings', { courseCode, semesterShortCode, connStringEnabled }, t);
-export const sendStudentPassword  = (t, id) => post(`/instructor/students/${id}/send-password`,         {}, t);
-export const resetStudentDb       = (t, id) => post(`/instructor/students/${id}/reset-db`,              {}, t);
-export const deleteStudent        = (t, id) => post(`/instructor/students/${id}/delete`,                 {}, t);
-export const regeneratePassword   = (t, id) => post(`/instructor/students/${id}/regenerate-password`,   {}, t);
+export const sendStudentPassword      = (t, id)       => post(`/instructor/students/${id}/send-password`,       {}, t);
+export const resetStudentDb           = (t, id)       => post(`/instructor/students/${id}/reset-db`,            {}, t);
+export const deleteStudent            = (t, id)       => post(`/instructor/students/${id}/delete`,               {}, t);
+export const regeneratePassword       = (t, id)       => post(`/instructor/students/${id}/regenerate-password`, {}, t);
+export const updateStudentConnString  = (t, id, val)  => post(`/instructor/students/${id}/conn-string`,  { connStringEnabled: val }, t);
 export const adminResetGuestDb    = (t)      => post('/instructor/admin/reset-guest-db',                 {}, t);
 export const adminHealth          = (t)      => get('/instructor/admin/health', t);
 

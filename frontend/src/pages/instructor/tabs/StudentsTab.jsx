@@ -3,7 +3,7 @@ import {
   Box, Grid, TextField, MenuItem, Button, Paper, Stack, Divider,
   Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
   Alert, Tooltip, IconButton, LinearProgress, Chip,
-  Switch, FormControlLabel, Typography, InputAdornment, Checkbox,
+  Switch, Typography, InputAdornment, Checkbox,
   Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
 } from '@mui/material';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
@@ -13,9 +13,11 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import StorageIcon from '@mui/icons-material/Storage';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import AddStudentDialog from './AddStudentDialog';
 import {
   fetchInstructorStudents, sendStudentPassword, resetStudentDb,
-  fetchCourseSettings, updateCourseSettings, deleteStudent,
+  deleteStudent, updateStudentConnString,
 } from '../../../api/client';
 
 function connString(s) {
@@ -58,6 +60,7 @@ function ProgressDialog({ open, title, items, doneCount, errors, onClose }) {
   );
 }
 
+// Add Student dialog
 export default function StudentsTab({ token, courses, semesters }) {
   const [filterSemester, setFilterSemester] = useState('');
   const [filterCourse,   setFilterCourse]   = useState('');
@@ -66,12 +69,11 @@ export default function StudentsTab({ token, courses, semesters }) {
   const [students,       setStudents]       = useState([]);
   const [loading,        setLoading]        = useState(false);
   const [msg,            setMsg]            = useState(null);
-  const [connEnabled,    setConnEnabled]    = useState(false);
-  const [connToggling,   setConnToggling]   = useState(false);
   const [confirm,        setConfirm]        = useState(null);
   const [copied,         setCopied]         = useState(null);
   const [selected,       setSelected]       = useState(new Set());
   const [prog,           setProg]           = useState(null);
+  const [addOpen,        setAddOpen]        = useState(false);
 
   useEffect(() => {
     const cur = semesters.find(s => s.isCurrent);
@@ -79,16 +81,12 @@ export default function StudentsTab({ token, courses, semesters }) {
   }, [semesters]);
 
   const loadStudents = useCallback(async () => {
-    if (!filterCourse || !filterSemester) { setStudents([]); setSelected(new Set()); return; }
+    if (!filterSemester) { setStudents([]); setSelected(new Set()); return; }
     setLoading(true); setMsg(null);
     try {
-      const [sd, cs] = await Promise.all([
-        fetchInstructorStudents(token, filterCourse, filterSemester),
-        fetchCourseSettings(token, filterCourse, filterSemester),
-      ]);
+      const sd = await fetchInstructorStudents(token, filterCourse, filterSemester);
       if (sd.ok) { setStudents(sd.students); setSelected(new Set()); }
       else setMsg({ ok: false, text: sd.error });
-      setConnEnabled(cs?.connStringEnabled || false);
     } catch { setMsg({ ok: false, text: 'Network error.' }); }
     finally { setLoading(false); }
   }, [token, filterCourse, filterSemester]);
@@ -132,13 +130,26 @@ export default function StudentsTab({ token, courses, semesters }) {
     if (onDone) onDone(errors);
   }
   function closeProg() { setProg(null); loadStudents(); }
+
+  async function handleAddStudent({ firstname, surname, email, section, courseCode, semesterShortCode }) {
+    // Called by AddStudentDialog after successful import
+    setAddOpen(false);
+    loadStudents();
+    setMsg({ ok: true, text: `${firstname} ${surname} added to ${courseCode}.` });
+  }
   function ask(title, text, onConfirm) { setConfirm({ title, text, onConfirm }); }
 
-  async function handleConnToggle(val) {
-    setConnToggling(true);
-    try { await updateCourseSettings(token, filterCourse, filterSemester, val); setConnEnabled(val); }
-    catch { /* non-fatal */ }
-    finally { setConnToggling(false); }
+  async function handleRowConnToggle(id, val) {
+    setStudents(prev => prev.map(s => s._id === id ? { ...s, connStringEnabled: val } : s));
+    try { await updateStudentConnString(token, id, val); }
+    catch { setStudents(prev => prev.map(s => s._id === id ? { ...s, connStringEnabled: !val } : s)); }
+  }
+
+  function handleBulkConnString(val) {
+    const label = val ? 'Enable SSMS Connect' : 'Disable SSMS Connect';
+    ask(label, `${val ? 'Enable' : 'Disable'} SSMS connections for ${selectedStudents.length} student(s)?`,
+      () => runOnSelected(`${val ? 'Enabling' : 'Disabling'} SSMS…`, selectedStudents,
+        s => updateStudentConnString(token, s._id, val)));
   }
 
   async function handleSendPassword(id) {
@@ -169,27 +180,22 @@ export default function StudentsTab({ token, courses, semesters }) {
     });
   }
 
-  const getTargets = () => selCount > 0 ? selectedStudents : visible;
-
   function handleBulkSend() {
-    const t = getTargets();
-    ask('Send Passwords', `Regenerate & email passwords for ${t.length} student(s)?`,
-      () => runOnSelected('Sending passwords…', t, s => sendStudentPassword(token, s._id)));
+    ask('Send Passwords', `Regenerate & email passwords for ${selectedStudents.length} student(s)?`,
+      () => runOnSelected('Sending passwords…', selectedStudents, s => sendStudentPassword(token, s._id)));
   }
 
   function handleBulkResetDbs() {
-    const t = getTargets();
-    ask('Reset Databases', `Reset databases for ${t.length} student(s)? All changes will be lost.`,
-      () => runOnSelected('Resetting databases…', t, s => resetStudentDb(token, s._id)));
+    ask('Reset Databases', `Reset databases for ${selectedStudents.length} student(s)? All changes will be lost.`,
+      () => runOnSelected('Resetting databases…', selectedStudents, s => resetStudentDb(token, s._id)));
   }
 
   function handleBulkDelete() {
-    const t = getTargets();
-    ask('Delete Students', `Soft-delete ${t.length} student(s) and drop their databases?`,
-      () => runOnSelected('Deleting students…', t, s => deleteStudent(token, s._id),
+    ask('Delete Students', `Soft-delete ${selectedStudents.length} student(s) and drop their databases?`,
+      () => runOnSelected('Deleting students…', selectedStudents, s => deleteStudent(token, s._id),
         (errors) => {
           if (!errors.length) {
-            const ids = new Set(t.map(s => s._id));
+            const ids = new Set(selectedStudents.map(s => s._id));
             setStudents(prev => prev.filter(p => !ids.has(p._id)));
             setSelected(new Set());
           }
@@ -204,8 +210,7 @@ export default function StudentsTab({ token, courses, semesters }) {
     setTimeout(() => setCopied(null), 1500);
   }
 
-  const hasFilters = !!filterCourse && !!filterSemester;
-  const bulkLabel  = selCount > 0 ? `${selCount} selected` : `all ${visible.length}`;
+  const hasFilters = !!filterSemester;
 
   return (
     <>
@@ -230,6 +235,15 @@ export default function StudentsTab({ token, courses, semesters }) {
           onClose={closeProg}
         />
       )}
+
+      <AddStudentDialog
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSuccess={(msg) => { loadStudents(); setMsg({ ok: true, text: msg }); }}
+        token={token}
+        courses={courses}
+        semesters={semesters}
+      />
 
       {/* Filter card */}
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
@@ -264,7 +278,7 @@ export default function StudentsTab({ token, courses, semesters }) {
               {sections.map(sec => <MenuItem key={sec} value={sec}>{sec}</MenuItem>)}
             </TextField>
           </Grid>
-          <Grid item xs={6} sm={8} md={4}>
+          <Grid item xs={6} sm={8} md={3}>
             <TextField
               label="Search" placeholder="Name or email…"
               value={search} size="small" fullWidth
@@ -284,6 +298,19 @@ export default function StudentsTab({ token, courses, semesters }) {
               }}
             />
           </Grid>
+          <Grid item xs={6} sm={4} md={1} sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'flex-start' } }}>
+            <Tooltip title="Add student manually" placement="top">
+              <Button
+                variant="contained" size="small"
+                startIcon={<PersonAddIcon fontSize="small" />}
+                disabled={!courses.length || !semesters.length}
+                onClick={() => setAddOpen(true)}
+                sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+              >
+                Add
+              </Button>
+            </Tooltip>
+          </Grid>
         </Grid>
       </Paper>
 
@@ -291,27 +318,6 @@ export default function StudentsTab({ token, courses, semesters }) {
       {hasFilters && !loading && students.length > 0 && (
         <Paper variant="outlined" sx={{ px: 2, py: 1.25, mb: 2 }}>
           <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap" useFlexGap>
-            <FormControlLabel
-              sx={{ mr: 0, my: 0 }}
-              control={
-                <Switch
-                  checked={connEnabled}
-                  onChange={e => handleConnToggle(e.target.checked)}
-                  disabled={connToggling}
-                  color="success"
-                  size="small"
-                />
-              }
-              label={
-                <Stack direction="row" alignItems="center" spacing={0.5}>
-                  <StorageIcon sx={{ fontSize: 14, color: connEnabled ? 'success.main' : 'text.disabled' }} />
-                  <Typography variant="caption" color={connEnabled ? 'success.main' : 'text.secondary'}>
-                    SSMS Connect
-                  </Typography>
-                </Stack>
-              }
-            />
-            <Divider orientation="vertical" flexItem />
             <Box sx={{ flex: 1, minWidth: 0 }}>
               {selCount > 0 ? (
                 <Chip
@@ -324,31 +330,62 @@ export default function StudentsTab({ token, courses, semesters }) {
                 />
               ) : (
                 <Typography variant="caption" color="text.disabled" noWrap>
-                  No selection — bulk actions apply to all {visible.length} visible
+                  Select students to use bulk actions
                 </Typography>
               )}
             </Box>
-            <Stack direction="row" spacing={1}>
-              <Tooltip title={`Send passwords for ${bulkLabel}`} placement="top">
-                <Button size="small" variant="outlined"
-                  startIcon={<MarkEmailReadIcon fontSize="small" />}
-                  onClick={handleBulkSend} sx={{ textTransform: 'none' }}>
-                  Send
-                </Button>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Tooltip title={selCount > 0 ? `Send passwords for ${selCount} selected` : 'Select students first'} placement="top">
+                <span>
+                  <Button size="small" variant="outlined"
+                    startIcon={<MarkEmailReadIcon fontSize="small" />}
+                    disabled={selCount === 0}
+                    onClick={handleBulkSend} sx={{ textTransform: 'none' }}>
+                    Send
+                  </Button>
+                </span>
               </Tooltip>
-              <Tooltip title={`Reset databases for ${bulkLabel}`} placement="top">
-                <Button size="small" variant="outlined" color="warning"
-                  startIcon={<RestartAltIcon fontSize="small" />}
-                  onClick={handleBulkResetDbs} sx={{ textTransform: 'none' }}>
-                  Reset DBs
-                </Button>
+              <Tooltip title={selCount > 0 ? `Reset databases for ${selCount} selected` : 'Select students first'} placement="top">
+                <span>
+                  <Button size="small" variant="outlined" color="warning"
+                    startIcon={<RestartAltIcon fontSize="small" />}
+                    disabled={selCount === 0}
+                    onClick={handleBulkResetDbs} sx={{ textTransform: 'none' }}>
+                    Reset DBs
+                  </Button>
+                </span>
               </Tooltip>
-              <Tooltip title={`Delete ${bulkLabel}`} placement="top">
-                <Button size="small" variant="outlined" color="error"
-                  startIcon={<DeleteIcon fontSize="small" />}
-                  onClick={handleBulkDelete} sx={{ textTransform: 'none' }}>
-                  Delete
-                </Button>
+              <Divider orientation="vertical" flexItem />
+              <Tooltip title={selCount > 0 ? `Enable SSMS for ${selCount} selected` : 'Select students first'} placement="top">
+                <span>
+                  <Button size="small" variant="outlined" color="success"
+                    startIcon={<StorageIcon fontSize="small" />}
+                    disabled={selCount === 0}
+                    onClick={() => handleBulkConnString(true)} sx={{ textTransform: 'none' }}>
+                    SSMS On
+                  </Button>
+                </span>
+              </Tooltip>
+              <Tooltip title={selCount > 0 ? `Disable SSMS for ${selCount} selected` : 'Select students first'} placement="top">
+                <span>
+                  <Button size="small" variant="outlined" color="inherit"
+                    startIcon={<StorageIcon fontSize="small" />}
+                    disabled={selCount === 0}
+                    onClick={() => handleBulkConnString(false)} sx={{ textTransform: 'none' }}>
+                    SSMS Off
+                  </Button>
+                </span>
+              </Tooltip>
+              <Divider orientation="vertical" flexItem />
+              <Tooltip title={selCount > 0 ? `Delete ${selCount} selected` : 'Select students first'} placement="top">
+                <span>
+                  <Button size="small" variant="outlined" color="error"
+                    startIcon={<DeleteIcon fontSize="small" />}
+                    disabled={selCount === 0}
+                    onClick={handleBulkDelete} sx={{ textTransform: 'none' }}>
+                    Delete
+                  </Button>
+                </span>
               </Tooltip>
             </Stack>
           </Stack>
@@ -366,7 +403,7 @@ export default function StudentsTab({ token, courses, semesters }) {
       {!hasFilters && (
         <Box sx={{ py: 8, textAlign: 'center' }}>
           <Typography color="text.disabled" variant="body2">
-            Select a semester and course to view students.
+            Select a semester to view students.
           </Typography>
         </Box>
       )}
@@ -374,7 +411,7 @@ export default function StudentsTab({ token, courses, semesters }) {
       {hasFilters && !loading && students.length === 0 && (
         <Box sx={{ py: 8, textAlign: 'center' }}>
           <Typography color="text.disabled" variant="body2">
-            No students found for this course / semester.
+            No students found for this semester.
           </Typography>
         </Box>
       )}
@@ -388,10 +425,12 @@ export default function StudentsTab({ token, courses, semesters }) {
                   <Checkbox size="small" indeterminate={someChecked && !allChecked} checked={allChecked} onChange={toggleAll} />
                 </TableCell>
                 <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper' }}>Name</TableCell>
+                <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', width: 90 }}>Course</TableCell>
                 <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', width: 56 }}>Sec</TableCell>
                 <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper' }}>Email</TableCell>
                 <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', width: 130 }}>Password</TableCell>
                 <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', width: 160 }}>Database</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 600, bgcolor: 'background.paper', width: 72 }}>SSMS</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 600, bgcolor: 'background.paper', width: 108 }}>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -404,6 +443,9 @@ export default function StudentsTab({ token, courses, semesters }) {
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" noWrap fontWeight={500}>{s.firstname} {s.surname}</Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip label={s.courseCode} size="small" variant="outlined" sx={{ fontFamily: 'monospace', fontSize: 11 }} />
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" fontFamily="monospace" fontSize={12} color="text.secondary">
@@ -427,6 +469,16 @@ export default function StudentsTab({ token, courses, semesters }) {
                         sx={{ maxWidth: 150, color: 'text.secondary', cursor: 'default' }}>
                         {s.dbName}
                       </Typography>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell align="center" onClick={e => e.stopPropagation()}>
+                    <Tooltip title={s.connStringEnabled ? 'SSMS Connect enabled — click to disable' : 'SSMS Connect disabled — click to enable'} placement="top">
+                      <Switch
+                        size="small"
+                        checked={!!s.connStringEnabled}
+                        onChange={e => handleRowConnToggle(s._id, e.target.checked)}
+                        color="success"
+                      />
                     </Tooltip>
                   </TableCell>
                   <TableCell align="right" onClick={e => e.stopPropagation()}>

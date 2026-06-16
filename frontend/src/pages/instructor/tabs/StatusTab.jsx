@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Box, Grid, Paper, Stack, Typography, Chip, IconButton, Tooltip,
   Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
-  LinearProgress, Alert,
+  LinearProgress, Alert, Button, CircularProgress, Divider,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -11,7 +11,8 @@ import StorageIcon from '@mui/icons-material/Storage';
 import CloudIcon from '@mui/icons-material/Cloud';
 import DnsIcon from '@mui/icons-material/Dns';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { fetchStatus } from '../../../api/client';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import { fetchStatus, adminResetGuestDb } from '../../../api/client';
 
 function fmtUptime(s) {
   const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600),
@@ -53,11 +54,13 @@ function SCard({ icon, title, children }) {
   );
 }
 
-export default function StatusTab() {
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState(null);
-  const [lastAt,  setLastAt]  = useState(null);
+export default function StatusTab({ token, isAdmin, onAsk }) {
+  const [data,       setData]       = useState(null);
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState(null);
+  const [lastAt,     setLastAt]     = useState(null);
+  const [resetting,  setResetting]  = useState(false);
+  const [resetMsg,   setResetMsg]   = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -69,6 +72,17 @@ export default function StatusTab() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  function handleReset() {
+    onAsk('Reset Guest Database', 'Reset the shared guest database to baseline? All guest data will be wiped.', async () => {
+      setResetMsg(null); setResetting(true);
+      try {
+        const d = await adminResetGuestDb(token);
+        setResetMsg({ ok: d.ok, text: d.ok ? `Reset complete — ${d.durationMs}ms, ${d.statementsExecuted} statements.` : d.error });
+      } catch { setResetMsg({ ok: false, text: 'Network error.' }); }
+      finally { setResetting(false); }
+    });
+  }
 
   return (
     <>
@@ -190,6 +204,31 @@ export default function StatusTab() {
               </SCard>
             </Grid>
           </Grid>
+        </>
+      )}
+
+      {isAdmin && (
+        <>
+          <Divider sx={{ my: 3 }} />
+          <Typography variant="h6" fontWeight={700} mb={2}>Admin — Guest Database</Typography>
+          <Stack spacing={2} maxWidth={400}>
+            <Button
+              variant="contained" color="error"
+              startIcon={resetting ? <CircularProgress size={16} color="inherit" /> : <RestartAltIcon />}
+              onClick={handleReset}
+              disabled={resetting}
+            >
+              {resetting ? 'Resetting…' : 'Reset Guest DB to Baseline'}
+            </Button>
+            {resetMsg && (
+              <Alert severity={resetMsg.ok ? 'success' : 'error'} onClose={() => setResetMsg(null)}>
+                {resetMsg.text}
+              </Alert>
+            )}
+            <Typography variant="caption" color="text.secondary">
+              Seed tables: Customers (5), Orders (5), Shippings (5), Teachers, supervisor_salaries
+            </Typography>
+          </Stack>
         </>
       )}
     </>

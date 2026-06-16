@@ -214,6 +214,21 @@ exports.deleteStudent = async (req, res) => {
   res.json({ ok: true, message: `Student ${student.emailaddress} deleted.` });
 };
 
+// ── POST /api/instructor/students/:id/conn-string ──────────────────────────
+exports.updateStudentConnString = async (req, res) => {
+  const { connStringEnabled } = req.body || {};
+  if (typeof connStringEnabled !== 'boolean') {
+    return res.status(400).json({ ok: false, error: 'connStringEnabled (boolean) is required.' });
+  }
+  const student = await ModelStudentCourse.findOneAndUpdate(
+    { _id: req.params.id, instAid: req.user.instAid, deleted: { $ne: true } },
+    { $set: { connStringEnabled } },
+    { new: true }
+  ).lean();
+  if (!student) return res.status(404).json({ ok: false, error: 'Student not found.' });
+  res.json({ ok: true, connStringEnabled: student.connStringEnabled });
+};
+
 // ── POST /api/instructor/students/:id/regenerate-password ────────────────
 exports.regenerateStudentPassword = async (req, res) => {
   const student = await ModelStudentCourse.findOne({ _id: req.params.id, instAid: req.user.instAid }).lean();

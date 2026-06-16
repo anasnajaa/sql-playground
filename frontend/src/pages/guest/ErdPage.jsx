@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   ReactFlow,
   Background,
@@ -15,50 +15,51 @@ const THEME_KEY      = 'sql_playground_theme';
 const JWT_STUDENT    = 'sql_student_jwt';
 const JWT_INSTRUCTOR = 'sql_instructor_jwt';
 
-// Layout constants — must match .erd-node-header and .erd-node-col heights in CSS
-const HEADER_H = 38; // px: height of the table-name header bar
-const ROW_H    = 48; // px: height of each column row
+function parseJwt(t) {
+  try { return JSON.parse(atob(t.split('.')[1])); } catch { return null; }
+}
 
-/* ── Custom table node ─────────────────────────────────────────────── */
+function layoutKey(studentToken, instructorToken) {
+  if (studentToken) {
+    const p = parseJwt(studentToken);
+    return `erd_pos_student_${p?.dbName || 'unknown'}`;
+  }
+  if (instructorToken) {
+    const p = parseJwt(instructorToken);
+    return `erd_pos_instructor_${p?.email || 'unknown'}`;
+  }
+  return 'erd_pos_guest';
+}
+
+function loadPositions(key) {
+  try { return JSON.parse(localStorage.getItem(key)) || {}; } catch { return {}; }
+}
+
+function persistPositions(key, nodes) {
+  const pos = {};
+  nodes.forEach(n => { pos[n.id] = n.position; });
+  localStorage.setItem(key, JSON.stringify(pos));
+}
+
 function TableNode({ data }) {
   return (
     <div className="erd-node">
+      <Handle type="target" position={Position.Left} />
+      <Handle type="source" position={Position.Right} />
       <div className="erd-node-header">{data.label}</div>
-      {data.columns.map((col, idx) => {
-        // Vertical centre of this row, relative to the node's top edge
-        const midY = HEADER_H + idx * ROW_H + ROW_H / 2;
-        return (
-          <div
-            key={col.name}
-            className={`erd-node-col${col.isPk ? ' pk' : col.isFk ? ' fk' : ''}`}
-          >
-            {/* PK columns receive incoming FK edges on the left */}
-            {col.isPk && (
-              <Handle
-                type="target"
-                position={Position.Left}
-                id={`tgt-${col.name}`}
-                style={{ top: midY, width: 8, height: 8, background: '#f08c00', border: '2px solid #fff', borderRadius: 4 }}
-              />
-            )}
-            {/* FK columns send edges out on the right */}
-            {col.isFk && (
-              <Handle
-                type="source"
-                position={Position.Right}
-                id={`src-${col.name}`}
-                style={{ top: midY, width: 8, height: 8, background: '#1971c2', border: '2px solid #fff', borderRadius: 4 }}
-              />
-            )}
-            <span className="erd-node-col-name">{col.name}</span>
-            <span className="erd-node-col-type">{col.type}</span>
-            <span className="erd-node-badges">
-              {col.isPk && <span className="erd-badge erd-pk">PK</span>}
-              {col.isFk && <span className="erd-badge erd-fk">FK</span>}
-            </span>
-          </div>
-        );
-      })}
+      {data.columns.map((col) => (
+        <div
+          key={col.name}
+          className={`erd-node-col${col.isPk ? ' pk' : col.isFk ? ' fk' : ''}`}
+        >
+          <span className="erd-node-col-name">{col.name}</span>
+          <span className="erd-node-col-type">{col.type}</span>
+          <span className="erd-node-badges">
+            {col.isPk && <span className="erd-badge erd-pk">PK</span>}
+            {col.isFk && <span className="erd-badge erd-fk">FK</span>}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -84,7 +85,7 @@ function buildGraph(erd) {
   cols.forEach(col => {
     let y = 60;
     col.forEach(table => {
-      const height = HEADER_H + table.columns.length * ROW_H;
+      const height = 38 + table.columns.length * 48;
       nodes.push({
         id: table.name,
         type: 'table',
@@ -107,8 +108,6 @@ function buildGraph(erd) {
     id: `e${i}`,
     source: rel.fromTable,
     target: rel.toTable,
-    sourceHandle: `src-${rel.fromColumn}`,
-    targetHandle: `tgt-${rel.toColumn}`,
     label: `${rel.fromColumn} → ${rel.toColumn}`,
     type: 'smoothstep',
     animated: true,
@@ -130,6 +129,7 @@ export default function ErdPage() {
   const studentToken    = localStorage.getItem(JWT_STUDENT);
   const instructorToken = localStorage.getItem(JWT_INSTRUCTOR);
   const authToken       = studentToken || instructorToken;
+  const posKey          = layoutKey(studentToken, instructorToken);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -144,11 +144,20 @@ export default function ErdPage() {
         if (!d.ok) { setError(d.error); return; }
         setErd(d);
         const { nodes: n, edges: e } = buildGraph(d);
-        setNodes(n);
+        // Apply saved positions if available
+        const saved = loadPositions(posKey);
+        const positioned = n.map(node =>
+          saved[node.id] ? { ...node, position: saved[node.id] } : node
+        );
+        setNodes(positioned);
         setEdges(e);
       })
       .catch(() => setError('Network error — could not load schema.'));
-  }, [theme, authToken, setNodes, setEdges]);
+  }, [theme, authToken, posKey, setNodes, setEdges]);
+
+  const handleNodeDragStop = useCallback((_, __, nodes) => {
+    persistPositions(posKey, nodes);
+  }, [posKey]);
 
   const header = (
     <div className="erd-topbar">
@@ -180,6 +189,7 @@ export default function ErdPage() {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
+          onNodeDragStop={handleNodeDragStop}
           fitView
           fitViewOptions={{ padding: 0.2 }}
           minZoom={0.3}

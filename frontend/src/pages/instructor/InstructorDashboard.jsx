@@ -9,7 +9,6 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import GroupIcon from '@mui/icons-material/Group';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import { darkTheme, lightTheme } from '../../theme';
@@ -17,7 +16,6 @@ import { fetchInstructorCourses, fetchInstructorSemesters } from '../../api/clie
 import StudentsTab from './tabs/StudentsTab';
 import ImportTab   from './tabs/ImportTab';
 import StatusTab   from './tabs/StatusTab';
-import AdminTab    from './tabs/AdminTab';
 
 const JWT_KEY = 'sql_instructor_jwt';
 
@@ -98,7 +96,6 @@ export default function InstructorDashboard() {
             <Tab icon={<GroupIcon />} iconPosition="start" label="Students" />
             <Tab icon={<UploadFileIcon />} iconPosition="start" label="Import CSV" />
             <Tab icon={<MonitorHeartIcon />} iconPosition="start" label="Server Status" />
-            {isAdmin && <Tab icon={<AdminPanelSettingsIcon />} iconPosition="start" label="Admin" />}
           </Tabs>
 
           <TabPanel value={tab} index={0}>
@@ -110,14 +107,8 @@ export default function InstructorDashboard() {
           </TabPanel>
 
           <TabPanel value={tab} index={2}>
-            <StatusTab />
+            <StatusTab token={token} isAdmin={isAdmin} onAsk={ask} />
           </TabPanel>
-
-          {isAdmin && (
-            <TabPanel value={tab} index={3}>
-              <AdminTab token={token} onAsk={ask} />
-            </TabPanel>
-          )}
         </Box>
       </Box>
 
