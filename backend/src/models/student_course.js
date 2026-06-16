@@ -19,6 +19,7 @@ const schema = new Schema(
         courseCode: { type: String },
         courseName: { type: String },
         courseSection: { type: String },
+        connStringEnabled: { type: Boolean, default: false },
 
         semesterTitle: { type: String },
         semesterCode: { type: String },

@@ -6,9 +6,10 @@ import {
 } from '@mui/material';
 import LoginIcon from '@mui/icons-material/Login';
 import SchoolIcon from '@mui/icons-material/School';
-import { darkTheme } from '../../theme';
+import { darkTheme, lightTheme } from '../../theme';
 import { studentLogin, fetchOrgs, fetchPublicSemesters, fetchPublicCourses } from '../../api/client';
 
+const THEME_KEY = 'sql_playground_theme';
 const JWT_KEY = 'sql_student_jwt';
 
 export default function StudentLoginPage() {
@@ -25,6 +26,7 @@ export default function StudentLoginPage() {
   const [error,   setError]   = useState(null);
   const [loading, setLoading] = useState(false);
   const [coursesLoading, setCoursesLoading] = useState(false);
+  const muiTheme = localStorage.getItem(THEME_KEY) === 'light' ? lightTheme : darkTheme;
 
   // Load orgs + semesters (with current default) on mount
   useEffect(() => {
@@ -69,7 +71,7 @@ export default function StudentLoginPage() {
   }
 
   return (
-    <ThemeProvider theme={darkTheme}>
+    <ThemeProvider theme={muiTheme}>
       <CssBaseline />
       <Box
         sx={{
@@ -77,7 +79,6 @@ export default function StudentLoginPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg, #0d1117 0%, #161b22 100%)',
           p: 2,
         }}
       >
@@ -88,11 +89,13 @@ export default function StudentLoginPage() {
           {/* Header */}
           <Stack direction="row" alignItems="center" spacing={1.5} mb={3}>
             <SchoolIcon color="primary" fontSize="large" />
-            <Box>
+            <Box pb={4}>
               <Typography variant="h6" fontWeight={700} lineHeight={3}>Student Login</Typography>
               <Typography variant="caption" color="text.secondary">SQL Online Compiler</Typography>
             </Box>
           </Stack>
+
+          <Divider sx={{ mb: 2 }} />
 
           <Stack component="form" onSubmit={handleSubmit} spacing={2}>
             {/* Organization */}

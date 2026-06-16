@@ -3,6 +3,13 @@
 -- ============================================================
 
 -- Drop in FK-safe reverse order
+IF OBJECT_ID('dbo.kuwait_education_level_by_gov',  'U') IS NOT NULL DROP TABLE dbo.kuwait_education_level_by_gov;
+IF OBJECT_ID('dbo.kuwait_nationality_by_gov',       'U') IS NOT NULL DROP TABLE dbo.kuwait_nationality_by_gov;
+IF OBJECT_ID('dbo.kuwait_population_count_by_area', 'U') IS NOT NULL DROP TABLE dbo.kuwait_population_count_by_area;
+IF OBJECT_ID('dbo.kuwait_work_status_by_age_group', 'U') IS NOT NULL DROP TABLE dbo.kuwait_work_status_by_age_group;
+IF OBJECT_ID('dbo.kuwait_area',                     'U') IS NOT NULL DROP TABLE dbo.kuwait_area;
+IF OBJECT_ID('dbo.kuwait_governorate',              'U') IS NOT NULL DROP TABLE dbo.kuwait_governorate;
+IF OBJECT_ID('dbo.students',                        'U') IS NOT NULL DROP TABLE dbo.students;
 IF OBJECT_ID('dbo.Shippings',            'U') IS NOT NULL DROP TABLE dbo.Shippings;
 IF OBJECT_ID('dbo.Orders',              'U') IS NOT NULL DROP TABLE dbo.Orders;
 IF OBJECT_ID('dbo.Customers',           'U') IS NOT NULL DROP TABLE dbo.Customers;
@@ -12,6 +19,69 @@ IF OBJECT_ID('dbo.eagle_watch',         'U') IS NOT NULL DROP TABLE dbo.eagle_wa
 IF OBJECT_ID('dbo.number_data_types',   'U') IS NOT NULL DROP TABLE dbo.number_data_types;
 IF OBJECT_ID('dbo.date_time_types',     'U') IS NOT NULL DROP TABLE dbo.date_time_types;
 IF OBJECT_ID('dbo.supervisor_salaries', 'U') IS NOT NULL DROP TABLE dbo.supervisor_salaries;
+
+-- ── Kuwait lookup tables ──────────────────────────────────────────────────
+
+CREATE TABLE kuwait_governorate (
+    id             INT PRIMARY KEY,
+    governorate_en NVARCHAR(100),
+    governorate_ar NVARCHAR(100)
+);
+
+CREATE TABLE kuwait_area (
+    id           INT PRIMARY KEY,
+    area_name_en NVARCHAR(200),
+    area_name_ar NVARCHAR(200)
+);
+
+-- ── Kuwait fact tables ────────────────────────────────────────────────────
+
+CREATE TABLE kuwait_education_level_by_gov (
+    id                                   INT IDENTITY(1,1) PRIMARY KEY,
+    edu_illiterate                       INT,
+    edu_read_write                       INT,
+    edu_primary                          INT,
+    edu_intermediate                     INT,
+    edu_secondary                        INT,
+    edu_above_secondary_below_university INT,
+    edu_university                       INT,
+    edu_above_university                 INT,
+    edu_not_stated                       INT,
+    gender                               VARCHAR(10),
+    governorate_id                       INT,
+    FOREIGN KEY (governorate_id) REFERENCES kuwait_governorate(id)
+);
+
+CREATE TABLE kuwait_nationality_by_gov (
+    id                 INT IDENTITY(1,1) PRIMARY KEY,
+    kuwaiti_male       INT,
+    kuwaiti_female     INT,
+    non_kuwaiti_male   INT,
+    non_kuwaiti_female INT,
+    governorate_id     INT,
+    FOREIGN KEY (governorate_id) REFERENCES kuwait_governorate(id)
+);
+
+CREATE TABLE kuwait_population_count_by_area (
+    id               INT IDENTITY(1,1) PRIMARY KEY,
+    population_count INT,
+    area_id          INT,
+    FOREIGN KEY (area_id) REFERENCES kuwait_area(id)
+);
+
+CREATE TABLE kuwait_work_status_by_age_group (
+    id                    INT IDENTITY(1,1) PRIMARY KEY,
+    age_group             VARCHAR(20),
+    gender                VARCHAR(10),
+    government_worker     INT,
+    non_government_worker INT,
+    domestic_worker       INT,
+    unemployed            INT,
+    student               INT,
+    full_time_home_worker INT,
+    retired_with_income   INT,
+    not_stated            INT
+);
 
 -- 1. Customers
 CREATE TABLE Customers (
@@ -85,6 +155,16 @@ CREATE TABLE supervisor_salaries (
     benefits   NUMERIC(10,2)
 );
 
+CREATE TABLE students (
+    student_id      INT PRIMARY KEY,
+    first_name      VARCHAR(50),
+    last_name       VARCHAR(50),
+    gender          VARCHAR(10),
+    date_of_birth   DATE,
+    enrollment_year INT,
+    gpa             NUMERIC(3,2)
+);
+
 
 
 -- 5. Seed Customers
@@ -154,3 +234,16 @@ VALUES
     
     -- 4. now() -> SYSDATETIMEOFFSET() (1 week = 7 days)
     (SYSDATETIMEOFFSET(), 7);
+
+-- Seed Students
+INSERT INTO students (student_id, first_name, last_name, gender, date_of_birth, enrollment_year, gpa) VALUES
+(1,  'Sarah',    'Al-Otaibi',   'Female', '2004-03-14', 2022, 3.85),
+(2,  'Ahmed',    'Al-Mutairi',  'Male',   '2003-08-22', 2021, 3.10),
+(3,  'Fatima',   'Dashti',      'Female', '2005-01-10', 2023, 3.92),
+(4,  'Khaled',   'Al-Enezi',    'Male',   '2004-11-05', 2022, 2.75),
+(5,  'Maryam',   'Al-Fadli',    'Female', '2003-05-19', 2021, 3.45),
+(6,  'Abdullah', 'Al-Shammari', 'Male',   '2004-07-30', 2022, 3.60),
+(7,  'Reem',     'Al-Saeed',    'Female', '2005-09-25', 2023, 2.98),
+(8,  'Yousef',   'Al-Kandari',  'Male',   '2003-12-02', 2021, 3.80),
+(9,  'Noura',    'Al-Rashed',   'Female', '2004-02-17', 2022, 3.67),
+(10, 'Bader',    'Al-Ali',      'Male',   '2005-06-11', 2023, 3.25);

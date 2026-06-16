@@ -7,9 +7,10 @@ import {
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { darkTheme } from '../../theme';
+import { darkTheme, lightTheme } from '../../theme';
 import { requestInstructorOtp, verifyInstructorOtp, fetchOrgs } from '../../api/client';
 
+const THEME_KEY = 'sql_playground_theme';
 const JWT_KEY = 'sql_instructor_jwt';
 
 export default function InstructorLoginPage() {
@@ -20,6 +21,7 @@ export default function InstructorLoginPage() {
   const [otp,   setOtp]   = useState('');
   const [error,   setError]   = useState(null);
   const [loading, setLoading] = useState(false);
+  const muiTheme = localStorage.getItem(THEME_KEY) === 'light' ? lightTheme : darkTheme;
 
   useEffect(() => {
     fetchOrgs().then(d => { if (d.ok && d.orgs?.length) setOrgs(d.orgs); }).catch(() => {});
@@ -57,7 +59,7 @@ export default function InstructorLoginPage() {
   }
 
   return (
-    <ThemeProvider theme={darkTheme}>
+    <ThemeProvider theme={muiTheme}>
       <CssBaseline />
       <Box
         sx={{
@@ -73,14 +75,14 @@ export default function InstructorLoginPage() {
           elevation={4}
           sx={{ width: '100%', maxWidth: 400, p: { xs: 3, sm: 4 }, borderRadius: 2 }}
         >
-          <Stack direction="row" alignItems="center" spacing={1.5} mb={3}>
+          <Stack direction="row" alignItems="center" spacing={1.5} mb={5}>
             <LockOpenIcon color="primary" fontSize="large" />
-            <Box>
+            <Box pb={4}>
               <Typography variant="h6" fontWeight={700} lineHeight={3}>Instructor Login</Typography>
               <Typography variant="caption" color="text.secondary">SQL Online Compiler</Typography>
             </Box>
           </Stack>
-
+          <Divider sx={{ mb: 2 }} />
           {step === 1 ? (
             <Stack component="form" onSubmit={handleRequestOtp} spacing={2}>
               <TextField

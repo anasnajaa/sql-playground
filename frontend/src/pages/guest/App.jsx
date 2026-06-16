@@ -21,11 +21,13 @@ import NoteAltIcon from '@mui/icons-material/NoteAlt';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
+import StorageIcon from '@mui/icons-material/Storage';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import SqlEditor from '../../components/SqlEditor';
 import ResultsTable from '../../components/ResultsTable';
 import SchemaPanel from '../../components/SchemaPanel';
 import TechStack from '../../components/TechStack';
-import { executeQuery, fetchSchema, studentResetDb } from '../../api/client';
+import { executeQuery, fetchSchema, studentResetDb, fetchStudentMe } from '../../api/client';
 import { darkTheme, lightTheme } from '../../theme';
 
 const STORAGE_KEY   = 'sql_playground_query';
@@ -60,7 +62,16 @@ export default function App() {
   const [notes,         setNotes]         = useState(() => {
     try { return JSON.parse(sessionStorage.getItem(NOTES_KEY)) || []; } catch { return []; }
   });
+  const [studentProfile, setStudentProfile] = useState(null); // full /me data
+  const [connOpen,       setConnOpen]       = useState(false);
   const captureRef = useRef(null);
+
+  // Fetch full student profile (includes connStringEnabled, loginName, plaintextPassword)
+  useEffect(() => {
+    if (studentToken) {
+      fetchStudentMe(studentToken).then(d => { if (d.ok) setStudentProfile(d); }).catch(() => {});
+    }
+  }, [studentToken]);
 
   useEffect(() => {
     sessionStorage.setItem(NOTES_KEY, JSON.stringify(notes));
@@ -221,9 +232,9 @@ export default function App() {
           sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper', flexShrink: 0 }}>
           <Toolbar variant="dense" sx={{ gap: 0.5, minHeight: 44 }}>
             <Box component="img" src="/logo_small.png" sx={{ height: 26, mr: 1 }} />
-            <Typography variant="subtitle2" fontWeight={700} sx={{ flexGrow: 1 }}>
-              SQL Online Compiler
-            </Typography>
+
+            {/* Spacer pushes right-side controls to the end */}
+            <Box sx={{ flexGrow: 1 }} />
 
             {studentUser ? (
               <>
@@ -251,6 +262,19 @@ export default function App() {
                 <IconButton size="small" href="/login"><LoginIcon fontSize="small" /></IconButton>
               </Tooltip>
             )}
+
+            <Tooltip title="Capture screenshot (editor + results)">
+              <span>
+                <IconButton size="small" onClick={handleCapture} disabled={capturing}>
+                  <CameraAltIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="My Notes (session only)">
+              <IconButton size="small" onClick={() => setNotesOpen(v => !v)} color={notesOpen ? 'primary' : 'default'}>
+                <NoteAltIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
 
             <Tooltip title="Schema Diagram">
               <IconButton size="small" href="/erd"><SchemaIcon fontSize="small" /></IconButton>
@@ -294,31 +318,6 @@ export default function App() {
               >
                 {loading ? 'Running…' : 'Run'}
               </Button>
-              <Tooltip title="Capture screenshot (editor + results)">
-                <span>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<CameraAltIcon />}
-                    onClick={handleCapture}
-                    disabled={capturing}
-                    sx={{ minWidth: 40 }}
-                  >
-                    {capturing ? '…' : 'Capture'}
-                  </Button>
-                </span>
-              </Tooltip>
-              <Tooltip title="My Notes (session only)">
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<NoteAltIcon />}
-                  onClick={() => setNotesOpen(v => !v)}
-                  sx={{ minWidth: 40 }}
-                >
-                  Notes{notes.length > 0 ? ` (${notes.length})` : ''}
-                </Button>
-              </Tooltip>
               <span className="toolbar-hint">Ctrl+Enter</span>
             </div>
             <SqlEditor value={sql} onChange={setSql} theme={theme} />
@@ -332,15 +331,84 @@ export default function App() {
             <aside className="schema-aside">
               <div className="schema-aside-header">
                 <span>Tables</span>
-                <IconButton size="small" onClick={() => setSchemaVisible(false)} title="Hide schema panel">
-                  <span className="material-icons" style={{ fontSize: 16 }}>close</span>
-                </IconButton>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  {studentProfile?.connStringEnabled && (
+                    <Tooltip title="Connect via SSMS">
+                      <IconButton size="small" onClick={() => setConnOpen(true)} color="primary">
+                        <StorageIcon style={{ fontSize: 15 }} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  <IconButton size="small" onClick={() => setSchemaVisible(false)} title="Hide schema panel">
+                    <span className="material-icons" style={{ fontSize: 16 }}>close</span>
+                  </IconButton>
+                </div>
               </div>
               <SchemaPanel schema={schema} />
             </aside>
           )}
         </main>
       </Box>
+
+      {/* Connection String Dialog */}
+      {studentProfile?.connStringEnabled && (
+        <Dialog open={connOpen} onClose={() => setConnOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <StorageIcon color="primary" fontSize="small" />
+            Connect via SSMS
+          </DialogTitle>
+          <DialogContent dividers>
+            <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+              Use these credentials in SQL Server Management Studio (SSMS) to connect directly to your personal database.
+            </Typography>
+            {[
+              { label: 'Server',         value: 'sql.kuwaitdevs.com,1433' },
+              { label: 'Authentication', value: 'SQL Server Authentication' },
+              { label: 'Login',          value: studentProfile.loginName },
+              { label: 'Password',       value: studentProfile.plaintextPassword },
+              { label: 'Database',       value: studentProfile.dbName },
+            ].map(({ label, value }) => (
+              <Box key={label} sx={{ mb: 1.5 }}>
+                <Typography variant="caption" color="text.secondary">{label}</Typography>
+                <Stack direction="row" alignItems="center" spacing={1} mt={0.3}>
+                  <Box sx={{
+                    flex: 1, fontFamily: 'monospace', fontSize: 13,
+                    bgcolor: 'action.hover', px: 1.5, py: 0.8, borderRadius: 1,
+                    border: 1, borderColor: 'divider', wordBreak: 'break-all',
+                  }}>{value}</Box>
+                  <Tooltip title="Copy">
+                    <IconButton size="small" onClick={() => navigator.clipboard?.writeText(value)}>
+                      <ContentCopyIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+              </Box>
+            ))}
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="caption" color="text.secondary">ADO.NET connection string</Typography>
+              <Stack direction="row" alignItems="center" spacing={1} mt={0.3}>
+                <Box sx={{
+                  flex: 1, fontFamily: 'monospace', fontSize: 11,
+                  bgcolor: 'action.hover', px: 1.5, py: 0.8, borderRadius: 1,
+                  border: 1, borderColor: 'divider', wordBreak: 'break-all',
+                }}>
+                  {`Server=sql.kuwaitdevs.com,1433;Database=${studentProfile.dbName};User Id=${studentProfile.loginName};Password=${studentProfile.plaintextPassword};TrustServerCertificate=True;`}
+                </Box>
+                <Tooltip title="Copy">
+                  <IconButton size="small" onClick={() => navigator.clipboard?.writeText(
+                    `Server=sql.kuwaitdevs.com,1433;Database=${studentProfile.dbName};User Id=${studentProfile.loginName};Password=${studentProfile.plaintextPassword};TrustServerCertificate=True;`
+                  )}>
+                    <ContentCopyIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setConnOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+      )}
 
       {/* Notes Drawer */}
       <Drawer
