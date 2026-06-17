@@ -23,6 +23,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import StorageIcon from '@mui/icons-material/Storage';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SqlEditor from '../../components/SqlEditor';
 import ResultsTable from '../../components/ResultsTable';
 import SchemaPanel from '../../components/SchemaPanel';
@@ -56,6 +57,7 @@ export default function App() {
   const [theme,         setTheme]         = useState(() => localStorage.getItem(THEME_KEY) || 'dark');
   const [techOpen,      setTechOpen]      = useState(false);
   const [resetConfirm,  setResetConfirm]  = useState(false);
+  const [resetResult,   setResetResult]   = useState(null); // { ok, text }
   const [capturing,     setCapturing]     = useState(false);
   const [captureMsg,    setCaptureMsg]    = useState(null); // { ok, text }
   const [notesOpen,     setNotesOpen]     = useState(false);
@@ -64,6 +66,7 @@ export default function App() {
   });
   const [studentProfile, setStudentProfile] = useState(null); // full /me data
   const [connOpen,       setConnOpen]       = useState(false);
+  const [infoOpen,       setInfoOpen]       = useState(false);
   const captureRef = useRef(null);
 
   // Fetch full student profile (includes connStringEnabled, loginName, plaintextPassword)
@@ -221,8 +224,22 @@ export default function App() {
             <Button color="error" variant="contained" onClick={async () => {
               setResetConfirm(false);
               const d = await studentResetDb(studentToken);
-              alert(d.message || d.error);
+              setResetResult({ ok: !!d.ok, text: d.message || d.error || 'Reset completed.' });
             }}>Reset</Button>
+          </DialogActions>
+        </Dialog>
+      )}
+
+      {studentUser && !!resetResult && (
+        <Dialog open onClose={() => setResetResult(null)} maxWidth="xs" fullWidth>
+          <DialogTitle>{resetResult.ok ? 'Database Reset Complete' : 'Database Reset Failed'}</DialogTitle>
+          <DialogContent>
+            <Alert severity={resetResult.ok ? 'success' : 'error'} sx={{ mt: 0.5 }}>
+              {resetResult.text}
+            </Alert>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setResetResult(null)} variant="contained">OK</Button>
           </DialogActions>
         </Dialog>
       )}
@@ -231,7 +248,10 @@ export default function App() {
         <AppBar position="static" color="default" elevation={0}
           sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper', flexShrink: 0 }}>
           <Toolbar variant="dense" sx={{ gap: 0.5, minHeight: 44 }}>
-            <Box component="img" src="/logo_small.png" sx={{ height: 26, mr: 1 }} />
+            <Box component="img" src="/logo_small.png" sx={{ height: 26, mr: 0.5 }} />
+            <Typography variant="subtitle2" fontWeight={700} sx={{ mr: 1, letterSpacing: 0.2 }}>
+              SQL Playground
+            </Typography>
 
             {/* Spacer pushes right-side controls to the end */}
             <Box sx={{ flexGrow: 1 }} />
@@ -289,6 +309,11 @@ export default function App() {
                 <IconButton size="small" onClick={() => setTechOpen(v => !v)}><SettingsIcon fontSize="small" /></IconButton>
               </Tooltip>
             )}
+            <Tooltip title="About this project">
+              <IconButton size="small" onClick={() => setInfoOpen(true)}>
+                <InfoOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
             <Tooltip title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
               <IconButton size="small" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
                 {theme === 'dark' ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
@@ -349,6 +374,40 @@ export default function App() {
           )}
         </main>
       </Box>
+
+      {/* About dialog */}
+      <Dialog open={infoOpen} onClose={() => setInfoOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <InfoOutlinedIcon color="primary" fontSize="small" />
+          About SQL Playground
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Typography variant="body2">
+              <strong>SQL Playground</strong> is an interactive, browser-based SQL learning environment built for students and instructors.
+            </Typography>
+            <Typography variant="body2">
+              Each enrolled student gets a <strong>personal Microsoft SQL Server database</strong> pre-loaded with practice datasets. You can write and run SQL queries directly in the browser, no software installation needed.
+            </Typography>
+            <Typography variant="body2" component="div">
+              <strong>Features include:</strong>
+              <Box component="ul" sx={{ pl: 2, mt: 0.5, mb: 0 }}>
+                <li>Live SQL editor with syntax highlighting</li>
+                <li>Instant query results</li>
+                <li>Schema browser showing all tables and columns</li>
+                <li>Entity Relationship Diagram (ERD) viewer</li>
+                <li>Personal note-taking panel (session-scoped)</li>
+                <li>Screenshot capture with watermark for submissions</li>
+                <li>Optional SSMS external connection credentials</li>
+                <li>Relevant Datasets from <a target='_blank' href="https://census.csb.gov.kw/index_EN">Census of Kuwait</a></li>
+              </Box>
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInfoOpen(false)} variant="contained">Got it</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Connection String Dialog */}
       {studentProfile?.connStringEnabled && (

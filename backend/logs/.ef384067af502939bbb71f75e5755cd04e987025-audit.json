@@ -14,6 +14,11 @@
             "date": 1781582135649,
             "name": "/root/sql-playground/backend/logs/combined-2026-06-16.log",
             "hash": "7f696fd2549e839e434ee8ad997539656c15f69653e9beddc5a0ce4857a328f9"
+        },
+        {
+            "date": 1781667220087,
+            "name": "/root/sql-playground/backend/logs/combined-2026-06-17.log",
+            "hash": "28816ae11cace962e7c0dd479b9e5103f6bb656b53c02afbbf4979681e7a7280"
         }
     ],
     "hashType": "sha256"

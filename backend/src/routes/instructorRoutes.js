@@ -17,6 +17,7 @@ router.post('/import/student',                   c.importStudent);
 router.post('/students/:id/send-password',       c.sendStudentPassword);
 router.post('/students/:id/reset-db',            c.resetStudentDb);
 router.post('/students/:id/delete',              c.deleteStudent);
+router.patch('/students/:id',                    c.updateStudent);
 router.post('/students/:id/conn-string',          c.updateStudentConnString);
 router.post('/students/:id/regenerate-password', c.regenerateStudentPassword);
 router.post('/admin/reset-guest-db',             c.adminResetGuestDb);

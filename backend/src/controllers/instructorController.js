@@ -229,6 +229,25 @@ exports.updateStudentConnString = async (req, res) => {
   res.json({ ok: true, connStringEnabled: student.connStringEnabled });
 };
 
+// ── PATCH /api/instructor/students/:id ──────────────────────────────────
+exports.updateStudent = async (req, res) => {
+  const { firstname, surname, courseSection } = req.body || {};
+  const update = {};
+  if (firstname !== undefined) update.firstname = firstname.trim();
+  if (surname !== undefined) update.surname = surname.trim();
+  if (courseSection !== undefined) update.courseSection = courseSection.trim();
+  if (Object.keys(update).length === 0) {
+    return res.status(400).json({ ok: false, error: 'No fields to update.' });
+  }
+  const student = await ModelStudentCourse.findOneAndUpdate(
+    { _id: req.params.id, instAid: req.user.instAid, deleted: { $ne: true } },
+    { $set: update },
+    { new: true }
+  ).lean();
+  if (!student) return res.status(404).json({ ok: false, error: 'Student not found.' });
+  res.json({ ok: true, student });
+};
+
 // ── POST /api/instructor/students/:id/regenerate-password ────────────────
 exports.regenerateStudentPassword = async (req, res) => {
   const student = await ModelStudentCourse.findOne({ _id: req.params.id, instAid: req.user.instAid }).lean();

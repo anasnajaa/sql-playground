@@ -14,7 +14,9 @@ import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import StorageIcon from '@mui/icons-material/Storage';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import EditIcon from '@mui/icons-material/Edit';
 import AddStudentDialog from './AddStudentDialog';
+import EditStudentDialog from './EditStudentDialog';
 import {
   fetchInstructorStudents, sendStudentPassword, resetStudentDb,
   deleteStudent, updateStudentConnString,
@@ -74,6 +76,7 @@ export default function StudentsTab({ token, courses, semesters }) {
   const [selected,       setSelected]       = useState(new Set());
   const [prog,           setProg]           = useState(null);
   const [addOpen,        setAddOpen]        = useState(false);
+  const [editingStudent, setEditingStudent] = useState(null);
 
   useEffect(() => {
     const cur = semesters.find(s => s.isCurrent);
@@ -206,7 +209,12 @@ export default function StudentsTab({ token, courses, semesters }) {
 
   function copyConn(s) {
     navigator.clipboard?.writeText(connString(s));
-    setCopied(s._id);
+    setCopied(`${s._id}-conn`);
+    setTimeout(() => setCopied(null), 1500);
+  }
+  function copyField(id, text, field) {
+    navigator.clipboard?.writeText(text || '');
+    setCopied(`${id}-${field}`);
     setTimeout(() => setCopied(null), 1500);
   }
 
@@ -245,6 +253,14 @@ export default function StudentsTab({ token, courses, semesters }) {
         semesters={semesters}
       />
 
+      <EditStudentDialog
+        open={!!editingStudent}
+        student={editingStudent}
+        onClose={() => setEditingStudent(null)}
+        onSuccess={(msg) => { setEditingStudent(null); loadStudents(); setMsg({ ok: true, text: msg }); }}
+        token={token}
+      />
+
       {/* Filter card */}
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Grid container spacing={2} alignItems="center">
@@ -273,7 +289,8 @@ export default function StudentsTab({ token, courses, semesters }) {
           <Grid item xs={6} sm={4} md={2}>
             <TextField select label="Section" value={filterSection} size="small" fullWidth
               disabled={!hasFilters || sections.length === 0}
-              onChange={e => setFilterSection(e.target.value)}>
+              onChange={e => setFilterSection(e.target.value)}
+              sx={{ minWidth: 90 }}>
               <MenuItem value="">All Sections</MenuItem>
               {sections.map(sec => <MenuItem key={sec} value={sec}>{sec}</MenuItem>)}
             </TextField>
@@ -453,23 +470,52 @@ export default function StudentsTab({ token, courses, semesters }) {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" fontFamily="monospace" fontSize={12} noWrap>{s.emailaddress}</Typography>
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                      <Typography variant="body2" fontFamily="monospace" fontSize={12} noWrap>{s.emailaddress}</Typography>
+                      <Tooltip title={copied === `${s._id}-email` ? 'Copied!' : 'Copy email'}>
+                        <IconButton size="small" sx={{ flexShrink: 0, opacity: 0.5, '&:hover': { opacity: 1 } }}
+                          color={copied === `${s._id}-email` ? 'success' : 'default'}
+                          onClick={e => { e.stopPropagation(); copyField(s._id, s.emailaddress, 'email'); }}>
+                          <ContentCopyIcon sx={{ fontSize: 12 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
                   </TableCell>
                   <TableCell onClick={e => e.stopPropagation()}>
-                    <Tooltip title={s.plaintextPassword || '—'} placement="top">
-                      <Typography variant="body2" fontFamily="monospace" fontSize={11} noWrap
-                        sx={{ maxWidth: 120, color: 'text.secondary', cursor: 'default' }}>
-                        {s.plaintextPassword || '—'}
-                      </Typography>
-                    </Tooltip>
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                      <Tooltip title={s.plaintextPassword || '—'} placement="top">
+                        <Typography variant="body2" fontFamily="monospace" fontSize={11} noWrap
+                          sx={{ maxWidth: 100, color: 'text.secondary', cursor: 'default' }}>
+                          {s.plaintextPassword || '—'}
+                        </Typography>
+                      </Tooltip>
+                      {s.plaintextPassword && (
+                        <Tooltip title={copied === `${s._id}-pw` ? 'Copied!' : 'Copy password'}>
+                          <IconButton size="small" sx={{ flexShrink: 0, opacity: 0.5, '&:hover': { opacity: 1 } }}
+                            color={copied === `${s._id}-pw` ? 'success' : 'default'}
+                            onClick={() => copyField(s._id, s.plaintextPassword, 'pw')}>
+                            <ContentCopyIcon sx={{ fontSize: 12 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Stack>
                   </TableCell>
                   <TableCell onClick={e => e.stopPropagation()}>
-                    <Tooltip title={s.dbName} placement="top">
-                      <Typography variant="body2" fontFamily="monospace" fontSize={11} noWrap
-                        sx={{ maxWidth: 150, color: 'text.secondary', cursor: 'default' }}>
-                        {s.dbName}
-                      </Typography>
-                    </Tooltip>
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                      <Tooltip title={s.dbName} placement="top">
+                        <Typography variant="body2" fontFamily="monospace" fontSize={11} noWrap
+                          sx={{ maxWidth: 120, color: 'text.secondary', cursor: 'default' }}>
+                          {s.dbName}
+                        </Typography>
+                      </Tooltip>
+                      <Tooltip title={copied === `${s._id}-db` ? 'Copied!' : 'Copy database name'}>
+                        <IconButton size="small" sx={{ flexShrink: 0, opacity: 0.5, '&:hover': { opacity: 1 } }}
+                          color={copied === `${s._id}-db` ? 'success' : 'default'}
+                          onClick={() => copyField(s._id, s.dbName, 'db')}>
+                          <ContentCopyIcon sx={{ fontSize: 12 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
                   </TableCell>
                   <TableCell align="center" onClick={e => e.stopPropagation()}>
                     <Tooltip title={s.connStringEnabled ? 'SSMS Connect enabled — click to disable' : 'SSMS Connect disabled — click to enable'} placement="top">
@@ -483,8 +529,13 @@ export default function StudentsTab({ token, courses, semesters }) {
                   </TableCell>
                   <TableCell align="right" onClick={e => e.stopPropagation()}>
                     <Stack direction="row" spacing={0} justifyContent="flex-end">
-                      <Tooltip title={copied === s._id ? 'Copied!' : 'Copy SSMS connection string'}>
-                        <IconButton size="small" color={copied === s._id ? 'success' : 'default'} onClick={() => copyConn(s)}>
+                      <Tooltip title="Edit student">
+                        <IconButton size="small" color="default" onClick={() => setEditingStudent(s)}>
+                          <EditIcon sx={{ fontSize: 15 }} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={copied === `${s._id}-conn` ? 'Copied!' : 'Copy SSMS connection string'}>
+                        <IconButton size="small" color={copied === `${s._id}-conn` ? 'success' : 'default'} onClick={() => copyConn(s)}>
                           <ContentCopyIcon sx={{ fontSize: 15 }} />
                         </IconButton>
                       </Tooltip>
