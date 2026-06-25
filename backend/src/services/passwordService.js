@@ -4,17 +4,12 @@ const bcrypt = require('bcryptjs');
 
 const BCRYPT_ROUNDS = 10;
 
-const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
-
 /**
- * Generate a random 10-character password.
+ * Generate a random 5-digit numeric password.
  */
 function generatePassword() {
-  let pw = '';
-  for (let i = 0; i < 10; i++) {
-    pw += CHARS[Math.floor(Math.random() * CHARS.length)];
-  }
-  return pw;
+  // 5 digits: 10000–99999
+  return String(Math.floor(10000 + Math.random() * 90000));
 }
 
 /** Hash a plaintext password with bcrypt. */

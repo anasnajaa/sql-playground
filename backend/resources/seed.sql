@@ -19,6 +19,8 @@ IF OBJECT_ID('dbo.eagle_watch',         'U') IS NOT NULL DROP TABLE dbo.eagle_wa
 IF OBJECT_ID('dbo.number_data_types',   'U') IS NOT NULL DROP TABLE dbo.number_data_types;
 IF OBJECT_ID('dbo.date_time_types',     'U') IS NOT NULL DROP TABLE dbo.date_time_types;
 IF OBJECT_ID('dbo.supervisor_salaries', 'U') IS NOT NULL DROP TABLE dbo.supervisor_salaries;
+IF OBJECT_ID('dbo.employees',           'U') IS NOT NULL DROP TABLE dbo.employees;
+IF OBJECT_ID('dbo.departments',         'U') IS NOT NULL DROP TABLE dbo.departments;
 
 -- ── Kuwait lookup tables ──────────────────────────────────────────────────
 
@@ -165,6 +167,24 @@ CREATE TABLE students (
     gpa             NUMERIC(3,2)
 );
 
+CREATE TABLE departments (
+    dept_id BIGINT IDENTITY(1,1),
+    dept    VARCHAR(100),
+    city    VARCHAR(100),
+    CONSTRAINT dept_key        PRIMARY KEY (dept_id),
+    CONSTRAINT dept_city_unique UNIQUE (dept, city)
+);
+
+CREATE TABLE employees (
+    emp_id     BIGINT IDENTITY(1,1),
+    first_name VARCHAR(100),
+    last_name  VARCHAR(100),
+    salary     INT,
+    dept_id    BIGINT CONSTRAINT fk_dept REFERENCES departments (dept_id),
+    CONSTRAINT emp_key        PRIMARY KEY (emp_id),
+    CONSTRAINT emp_dept_unique UNIQUE (emp_id, dept_id)
+);
+
 
 
 -- 5. Seed Customers
@@ -247,3 +267,14 @@ INSERT INTO students (student_id, first_name, last_name, gender, date_of_birth, 
 (8,  'Yousef',   'Al-Kandari',  'Male',   '2003-12-02', 2021, 3.80),
 (9,  'Noura',    'Al-Rashed',   'Female', '2004-02-17', 2022, 3.67),
 (10, 'Bader',    'Al-Ali',      'Male',   '2005-06-11', 2023, 3.25);
+
+-- Seed Departments & Employees
+INSERT INTO departments (dept, city) VALUES
+    ('Tax', 'Atlanta'),
+    ('IT',  'Boston');
+
+INSERT INTO employees (first_name, last_name, salary, dept_id) VALUES
+    ('Nancy', 'Jones',  62500, 1),
+    ('Lee',   'Smith',  59300, 1),
+    ('Soo',   'Nguyen', 83000, 2),
+    ('Janet', 'King',   95000, 2);

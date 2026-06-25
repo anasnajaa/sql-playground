@@ -231,20 +231,58 @@ exports.updateStudentConnString = async (req, res) => {
 
 // ── PATCH /api/instructor/students/:id ──────────────────────────────────
 exports.updateStudent = async (req, res) => {
-  const { firstname, surname, courseSection } = req.body || {};
+  const { firstname, surname, courseSection, email, password } = req.body || {};
   const update = {};
-  if (firstname !== undefined) update.firstname = firstname.trim();
-  if (surname !== undefined) update.surname = surname.trim();
+  if (firstname    !== undefined) update.firstname    = firstname.trim();
+  if (surname      !== undefined) update.surname      = surname.trim();
   if (courseSection !== undefined) update.courseSection = courseSection.trim();
+
+  // Email update
+  if (email !== undefined) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return res.status(400).json({ ok: false, error: 'Invalid email address.' });
+    }
+    // Ensure no other active student has this email in the same org/semester/course
+    const existing = await ModelStudentCourse.findOne({
+      emailaddress: normalizedEmail,
+      _id: { $ne: req.params.id },
+      deleted: { $ne: true },
+    }).lean();
+    if (existing) {
+      return res.status(409).json({ ok: false, error: 'This email is already used by another student.' });
+    }
+    update.emailaddress = normalizedEmail;
+  }
+
+  // Password update
+  if (password !== undefined && password.trim() !== '') {
+    if (password.trim().length < 4) {
+      return res.status(400).json({ ok: false, error: 'Password must be at least 4 characters.' });
+    }
+    update.password          = await hashPassword(password.trim());
+    update.plaintextPassword = password.trim();
+  }
+
   if (Object.keys(update).length === 0) {
     return res.status(400).json({ ok: false, error: 'No fields to update.' });
   }
+
   const student = await ModelStudentCourse.findOneAndUpdate(
     { _id: req.params.id, instAid: req.user.instAid, deleted: { $ne: true } },
     { $set: update },
     { new: true }
   ).lean();
   if (!student) return res.status(404).json({ ok: false, error: 'Student not found.' });
+
+  // Sync new password to MSSQL login if password was changed
+  if (update.plaintextPassword) {
+    try {
+      const loginName = student.emailaddress.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
+      await createStudentMssqlLogin(loginName, update.plaintextPassword, student.dbName);
+    } catch (_) { /* non-fatal */ }
+  }
+
   res.json({ ok: true, student });
 };
 

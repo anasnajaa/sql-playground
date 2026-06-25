@@ -14,6 +14,16 @@
             "date": 1781582135636,
             "name": "/root/sql-playground/backend/logs/error-2026-06-16.log",
             "hash": "be3c4694c7b79f3c24621f7be157f33fcc8166916d8b581515e3437f1bca7b73"
+        },
+        {
+            "date": 1782324087425,
+            "name": "/root/sql-playground/backend/logs/error-2026-06-24.log",
+            "hash": "4f2b74cf97c6167f74ae770ee47e7d17995f47ef2bc3ad903505d18688a37e41"
+        },
+        {
+            "date": 1782365524541,
+            "name": "/root/sql-playground/backend/logs/error-2026-06-25.log",
+            "hash": "d2fed56bfeafbfe25ca7f622807d8f7955261e946db24c9dd96698c414d6f936"
         }
     ],
     "hashType": "sha256"

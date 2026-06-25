@@ -9,6 +9,21 @@ function getToken() {
     || null;
 }
 
+/** Called on any 401 response — clears tokens and fires a global event. */
+function handleUnauthorized(token) {
+  // Determine which role's token expired
+  const role =
+    token === localStorage.getItem(JWT_STUDENT_KEY)    ? 'student'
+    : token === localStorage.getItem(JWT_INSTRUCTOR_KEY) ? 'instructor'
+    : localStorage.getItem(JWT_STUDENT_KEY)              ? 'student'
+    : 'instructor';
+
+  localStorage.removeItem(JWT_STUDENT_KEY);
+  localStorage.removeItem(JWT_INSTRUCTOR_KEY);
+
+  window.dispatchEvent(new CustomEvent('auth:expired', { detail: { role } }));
+}
+
 async function post(path, body, token) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -17,6 +32,7 @@ async function post(path, body, token) {
     headers,
     body: JSON.stringify(body),
   });
+  if (res.status === 401) { handleUnauthorized(token); return { ok: false, error: 'Session expired.' }; }
   return res.json();
 }
 
@@ -24,6 +40,7 @@ async function get(path, token) {
   const headers = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, { headers });
+  if (res.status === 401) { handleUnauthorized(token); return { ok: false, error: 'Session expired.' }; }
   return res.json();
 }
 
@@ -31,6 +48,7 @@ async function postForm(path, formData, token) {
   const headers = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, { method: 'POST', headers, body: formData });
+  if (res.status === 401) { handleUnauthorized(token); return { ok: false, error: 'Session expired.' }; }
   return res.json();
 }
 
@@ -76,3 +94,9 @@ export const adminHealth          = (t)      => get('/instructor/admin/health', 
 // ── Student ──────────────────────────────────────────────────────────────
 export const fetchStudentMe       = (t) => get('/student/me', t);
 export const studentResetDb       = (t) => post('/student/reset-db', {}, t);
+export const studentChangePassword = (t, currentPassword, newPassword) =>
+  post('/student/change-password', { currentPassword, newPassword }, t);
+export const requestPasswordReset = (org, email) =>
+  post('/auth/student/request-password-reset', { org, email });
+export const resetPasswordWithToken = (token, newPassword) =>
+  post('/auth/student/reset-password', { token, newPassword });

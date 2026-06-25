@@ -1,0 +1,1 @@
+can you run a script to regenerate all students passwords and send it to students via email

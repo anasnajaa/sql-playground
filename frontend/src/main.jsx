@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './pages/guest/App';
 import ErdPage from './pages/guest/ErdPage';
 import StudentLoginPage from './pages/student/StudentLoginPage';
+import ResetPasswordPage from './pages/student/ResetPasswordPage';
 import InstructorLoginPage from './pages/instructor/InstructorLoginPage';
 import InstructorDashboard from './pages/instructor/InstructorDashboard';
 import StatusPage from './pages/instructor/StatusPage';
@@ -13,6 +14,7 @@ const path = window.location.pathname;
 const Page = path === '/admin'            ? AdminPage
            : path === '/erd'              ? ErdPage
            : path === '/login'            ? StudentLoginPage
+           : path === '/reset-password'   ? ResetPasswordPage
            : path === '/instructor/login' ? InstructorLoginPage
            : path === '/instructor'       ? InstructorDashboard
            : path === '/status'           ? StatusPage

@@ -8,7 +8,7 @@ import { importStudent } from '../../../api/client';
 
 const empty = { firstname: '', surname: '', email: '', section: '', courseCode: '', semesterShortCode: '' };
 
-export default function AddStudentDialog({ open, onClose, onSuccess, token, courses, semesters }) {
+export default function InstructorAddStudentDialog({ open, onClose, onSuccess, token, courses, semesters }) {
   const [form,   setForm]   = useState(empty);
   const [saving, setSaving] = useState(false);
   const [err,    setErr]    = useState(null);

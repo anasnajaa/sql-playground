@@ -15,8 +15,8 @@ import ClearIcon from '@mui/icons-material/Clear';
 import StorageIcon from '@mui/icons-material/Storage';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import EditIcon from '@mui/icons-material/Edit';
-import AddStudentDialog from './AddStudentDialog';
-import EditStudentDialog from './EditStudentDialog';
+import InstructorAddStudentDialog from './InstructorAddStudentDialog';
+import InstructorEditStudentDialog from './InstructorEditStudentDialog';
 import {
   fetchInstructorStudents, sendStudentPassword, resetStudentDb,
   deleteStudent, updateStudentConnString,
@@ -244,7 +244,7 @@ export default function StudentsTab({ token, courses, semesters }) {
         />
       )}
 
-      <AddStudentDialog
+      <InstructorAddStudentDialog
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onSuccess={(msg) => { loadStudents(); setMsg({ ok: true, text: msg }); }}
@@ -253,7 +253,7 @@ export default function StudentsTab({ token, courses, semesters }) {
         semesters={semesters}
       />
 
-      <EditStudentDialog
+      <InstructorEditStudentDialog
         open={!!editingStudent}
         student={editingStudent}
         onClose={() => setEditingStudent(null)}

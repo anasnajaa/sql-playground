@@ -19,6 +19,21 @@
             "date": 1781667220087,
             "name": "/root/sql-playground/backend/logs/combined-2026-06-17.log",
             "hash": "28816ae11cace962e7c0dd479b9e5103f6bb656b53c02afbbf4979681e7a7280"
+        },
+        {
+            "date": 1782052594152,
+            "name": "/root/sql-playground/backend/logs/combined-2026-06-21.log",
+            "hash": "b9d79a35d6a5c78772356c4cda34355e0d0ccd20155a091f6e82cfe93a283c40"
+        },
+        {
+            "date": 1782324087431,
+            "name": "/root/sql-playground/backend/logs/combined-2026-06-24.log",
+            "hash": "119173d86e567a48d44f5bdaf4a68acce46c777be81798044363564f06e5cf2c"
+        },
+        {
+            "date": 1782364266472,
+            "name": "/root/sql-playground/backend/logs/combined-2026-06-25.log",
+            "hash": "75d58cd2a0774fe0256efc8d8681f727928ecb846c755ac4cce95e70bb920e59"
         }
     ],
     "hashType": "sha256"

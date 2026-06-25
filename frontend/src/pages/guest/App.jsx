@@ -3,7 +3,7 @@ import {
   ThemeProvider, CssBaseline,
   AppBar, Toolbar, Box, IconButton, Tooltip, Chip, Button, Snackbar, Alert,
   Typography, Dialog, DialogTitle, DialogContent, DialogActions,
-  Drawer, TextField, Stack, Card, CardContent,
+  Drawer, TextField, Stack, Card, CardContent, Link,
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
@@ -24,11 +24,12 @@ import CloseIcon from '@mui/icons-material/Close';
 import StorageIcon from '@mui/icons-material/Storage';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import SqlEditor from '../../components/SqlEditor';
 import ResultsTable from '../../components/ResultsTable';
 import SchemaPanel from '../../components/SchemaPanel';
 import TechStack from '../../components/TechStack';
-import { executeQuery, fetchSchema, studentResetDb, fetchStudentMe } from '../../api/client';
+import { executeQuery, fetchSchema, studentResetDb, fetchStudentMe, studentChangePassword } from '../../api/client';
 import { darkTheme, lightTheme } from '../../theme';
 
 const STORAGE_KEY   = 'sql_playground_query';
@@ -67,7 +68,26 @@ export default function App() {
   const [studentProfile, setStudentProfile] = useState(null); // full /me data
   const [connOpen,       setConnOpen]       = useState(false);
   const [infoOpen,       setInfoOpen]       = useState(false);
+  const [pwOpen,         setPwOpen]         = useState(false);
+  const [pwCurrent,      setPwCurrent]      = useState('');
+  const [pwNew,          setPwNew]          = useState('');
+  const [pwConfirm,      setPwConfirm]      = useState('');
+  const [pwLoading,      setPwLoading]      = useState(false);
+  const [pwMsg,          setPwMsg]          = useState(null); // { ok, text }
   const captureRef = useRef(null);
+
+  // Handle JWT expiry globally
+  useEffect(() => {
+    function onExpired(e) {
+      const role = e.detail?.role;
+      const loginUrl = role === 'instructor' ? '/instructor/login' : '/login';
+      // Show a brief snackbar then redirect
+      setCaptureMsg({ ok: false, text: 'Your session has expired. Please log in again.' });
+      setTimeout(() => { window.location.href = loginUrl; }, 2500);
+    }
+    window.addEventListener('auth:expired', onExpired);
+    return () => window.removeEventListener('auth:expired', onExpired);
+  }, []);
 
   // Fetch full student profile (includes connStringEnabled, loginName, plaintextPassword)
   useEffect(() => {
@@ -271,6 +291,11 @@ export default function App() {
                     <RestartAltIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
+                <Tooltip title="Change password">
+                  <IconButton size="small" onClick={() => { setPwOpen(true); setPwMsg(null); setPwCurrent(''); setPwNew(''); setPwConfirm(''); }}>
+                    <LockOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
                 <Tooltip title="Logout">
                   <IconButton size="small" onClick={() => { localStorage.removeItem(JWT_STUDENT); window.location.reload(); }}>
                     <LogoutIcon fontSize="small" />
@@ -374,6 +399,80 @@ export default function App() {
           )}
         </main>
       </Box>
+
+      {/* Change Password Dialog */}
+      {studentUser && (
+        <Dialog open={pwOpen} onClose={() => setPwOpen(false)} maxWidth="xs" fullWidth>
+          <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <LockOutlinedIcon color="primary" fontSize="small" />
+            Change Password
+          </DialogTitle>
+          <DialogContent dividers>
+            {pwMsg && (
+              <Alert severity={pwMsg.ok ? 'success' : 'error'} sx={{ mb: 2 }}>
+                {pwMsg.text}
+              </Alert>
+            )}
+            <Stack spacing={2} mt={0.5}>
+              <TextField
+                label="Current Password"
+                type="password"
+                size="small"
+                fullWidth
+                value={pwCurrent}
+                onChange={e => setPwCurrent(e.target.value)}
+                inputProps={{ inputMode: 'numeric', maxLength: 10 }}
+              />
+              <TextField
+                label="New Password (5 digits)"
+                type="password"
+                size="small"
+                fullWidth
+                value={pwNew}
+                onChange={e => setPwNew(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                inputProps={{ inputMode: 'numeric', maxLength: 5 }}
+                helperText="Must be exactly 5 numbers"
+              />
+              <TextField
+                label="Confirm New Password"
+                type="password"
+                size="small"
+                fullWidth
+                value={pwConfirm}
+                onChange={e => setPwConfirm(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                inputProps={{ inputMode: 'numeric', maxLength: 5 }}
+                error={!!pwConfirm && pwConfirm !== pwNew}
+                helperText={!!pwConfirm && pwConfirm !== pwNew ? 'Passwords do not match' : ''}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ flexDirection: 'column', alignItems: 'stretch', gap: 1, px: 2, pb: 2 }}>
+            <Button
+              variant="contained"
+              disabled={pwLoading || pwNew.length !== 5 || pwNew !== pwConfirm || !pwCurrent}
+              onClick={async () => {
+                setPwLoading(true);
+                setPwMsg(null);
+                const d = await studentChangePassword(studentToken, pwCurrent, pwNew);
+                setPwLoading(false);
+                if (d.ok) {
+                  setPwMsg({ ok: true, text: d.message });
+                  setPwCurrent(''); setPwNew(''); setPwConfirm('');
+                } else {
+                  setPwMsg({ ok: false, text: d.error || 'Failed to change password.' });
+                }
+              }}
+            >
+              {pwLoading ? 'Saving…' : 'Save New Password'}
+            </Button>
+            <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', pt: 0.5 }}>
+              Forgot your password?{' '}
+              <Link href="/login" onClick={() => setPwOpen(false)}>Request a reset link</Link>
+            </Typography>
+            <Button onClick={() => setPwOpen(false)} disabled={pwLoading}>Cancel</Button>
+          </DialogActions>
+        </Dialog>
+      )}
 
       {/* About dialog */}
       <Dialog open={infoOpen} onClose={() => setInfoOpen(false)} maxWidth="sm" fullWidth>

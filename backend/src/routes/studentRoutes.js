@@ -9,5 +9,7 @@ router.use(requireStudentJwt);
 
 router.get('/me',       c.getMe);
 router.post('/reset-db', c.resetDb);
+router.post('/change-password',         c.changePassword);
+router.post('/request-password-reset',  c.requestPasswordReset);
 
 module.exports = router;

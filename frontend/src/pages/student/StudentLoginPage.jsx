@@ -7,7 +7,7 @@ import {
 import LoginIcon from '@mui/icons-material/Login';
 import SchoolIcon from '@mui/icons-material/School';
 import { darkTheme, lightTheme } from '../../theme';
-import { studentLogin, fetchOrgs, fetchPublicSemesters, fetchPublicCourses } from '../../api/client';
+import { studentLogin, fetchOrgs, fetchPublicSemesters, fetchPublicCourses, requestPasswordReset } from '../../api/client';
 
 const THEME_KEY = 'sql_playground_theme';
 const JWT_KEY = 'sql_student_jwt';
@@ -26,6 +26,8 @@ export default function StudentLoginPage() {
   const [error,   setError]   = useState(null);
   const [loading, setLoading] = useState(false);
   const [coursesLoading, setCoursesLoading] = useState(false);
+  const [forgotMsg,  setForgotMsg]  = useState(null); // { ok, text }
+  const [forgotBusy, setForgotBusy] = useState(false);
   const muiTheme = localStorage.getItem(THEME_KEY) === 'light' ? lightTheme : darkTheme;
 
   // Load orgs + semesters (with current default) on mount
@@ -169,6 +171,32 @@ export default function StudentLoginPage() {
               size="large"
             >
               {loading ? 'Signing in…' : 'Sign In'}
+            </Button>
+
+            <Divider><Typography variant="caption" color="text.secondary">Forgot your password?</Typography></Divider>
+
+            {forgotMsg && (
+              <Alert severity={forgotMsg.ok ? 'info' : 'error'} sx={{ py: 0.5 }}>{forgotMsg.text}</Alert>
+            )}
+            <Button
+              variant="outlined"
+              color="secondary"
+              fullWidth
+              disabled={forgotBusy || !org || !email}
+              onClick={async () => {
+                setForgotMsg(null);
+                setForgotBusy(true);
+                try {
+                  const d = await requestPasswordReset(org, email.trim());
+                  setForgotMsg({ ok: d.ok, text: d.message || d.error || 'Request sent.' });
+                } catch {
+                  setForgotMsg({ ok: false, text: 'Network error. Please try again.' });
+                } finally {
+                  setForgotBusy(false);
+                }
+              }}
+            >
+              {forgotBusy ? <CircularProgress size={16} color="inherit" /> : 'Send password reset link'}
             </Button>
           </Stack>
 

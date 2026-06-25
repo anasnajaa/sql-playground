@@ -5,7 +5,9 @@ const { ModelStudentCourse } = require('../models/student_course');
 const { ModelCourse }        = require('../models/course');
 const { ModelSemester }      = require('../models/semester');
 const { generateOtp, verifyOtp } = require('../services/otpService');
-const { verifyPassword }         = require('../services/passwordService');
+const { verifyPassword, hashPassword } = require('../services/passwordService');
+const { generateResetToken, consumeResetToken } = require('../services/passwordResetService');
+const { createStudentMssqlLogin } = require('../services/studentDbService');
 const { mail_gun_send_email }    = require('../integrations/mail_gun');
 const { signToken }              = require('../middleware/auth');
 
@@ -166,3 +168,103 @@ exports.studentLogin = async (req, res) => {
     semesterShortCode: student.semesterShortCode,
   });
 };
+
+// ── POST /api/auth/student/request-password-reset ─────────────────────────
+exports.requestPasswordReset = async (req, res) => {
+  const { org, email } = req.body || {};
+  if (!org || !email) {
+    return res.status(400).json({ ok: false, error: 'org and email are required.' });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedOrg   = org.trim();
+
+  const student = await ModelStudentCourse.findOne({
+    organization: normalizedOrg,
+    emailaddress: normalizedEmail,
+    active:  true,
+    deleted: { $ne: true },
+  }).lean();
+
+  // Always respond the same way to prevent email enumeration
+  const genericMsg = 'If an account was found, a password reset link has been sent to your email.';
+
+  if (!student) return res.json({ ok: true, message: genericMsg });
+
+  const token = generateResetToken(normalizedEmail, normalizedOrg);
+  const resetUrl = `${process.env.SITE_URL || 'https://sql.kuwaitdevs.com'}/reset-password?token=${token}`;
+
+  try {
+    await mail_gun_send_email({
+      to: normalizedEmail,
+      subject: 'SQL Playground — Password Reset',
+      text: [
+        `Hello ${student.firstname},`,
+        '',
+        'You requested a password reset for your SQL Playground account.',
+        '',
+        `Reset link (expires in 30 minutes):`,
+        resetUrl,
+        '',
+        'If you did not request this, you can ignore this email.',
+      ].join('\n'),
+      html: `
+        <p>Hello ${student.firstname},</p>
+        <p>You requested a password reset for your SQL Playground account.</p>
+        <p>
+          <a href="${resetUrl}" style="display:inline-block;padding:10px 20px;background:#1971c2;color:#fff;border-radius:4px;text-decoration:none;font-weight:bold">
+            Reset My Password
+          </a>
+        </p>
+        <p style="font-size:0.85em;color:#888">This link expires in 30 minutes.<br>If you did not request this, you can ignore this email.</p>
+        <p style="font-size:0.8em;color:#aaa">Or copy this link: ${resetUrl}</p>
+      `,
+    });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: 'Failed to send reset email. Please try again.' });
+  }
+
+  res.json({ ok: true, message: genericMsg });
+};
+
+// ── POST /api/auth/student/reset-password ─────────────────────────────────
+exports.resetPassword = async (req, res) => {
+  const { token, newPassword } = req.body || {};
+  if (!token || !newPassword) {
+    return res.status(400).json({ ok: false, error: 'token and newPassword are required.' });
+  }
+  if (newPassword.length < 4) {
+    return res.status(400).json({ ok: false, error: 'Password must be at least 4 characters.' });
+  }
+
+  const identity = consumeResetToken(token);
+  if (!identity) {
+    return res.status(400).json({ ok: false, error: 'This reset link is invalid or has expired.' });
+  }
+
+  const { email, org } = identity;
+
+  const hashed = await hashPassword(newPassword);
+
+  // Update all active enrollments for this email+org
+  const students = await ModelStudentCourse.find({
+    emailaddress: email,
+    organization: org,
+    active:  true,
+    deleted: { $ne: true },
+  });
+
+  for (const s of students) {
+    s.password          = hashed;
+    s.plaintextPassword = newPassword;
+    await s.save();
+
+    try {
+      const loginName = s.emailaddress.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
+      await createStudentMssqlLogin(loginName, newPassword, s.dbName);
+    } catch (_) { /* non-fatal */ }
+  }
+
+  res.json({ ok: true, message: 'Your password has been updated. You can now log in.' });
+};
+

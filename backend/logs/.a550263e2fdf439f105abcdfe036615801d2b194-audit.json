@@ -6,19 +6,19 @@
     "auditLog": "/root/sql-playground/backend/logs/.a550263e2fdf439f105abcdfe036615801d2b194-audit.json",
     "files": [
         {
-            "date": 1781507920337,
-            "name": "/root/sql-playground/backend/logs/http-2026-06-15.log",
-            "hash": "90826952e20330a6ba16adaa8fc18f6b8b849e82a1f8c476cf4e9c23d51b76ec"
+            "date": 1782052594154,
+            "name": "/root/sql-playground/backend/logs/http-2026-06-21.log",
+            "hash": "2b8ba2b3cfea6ddf2d5e51c940862694d227225991ba807cfa47e4bbe2c888f3"
         },
         {
-            "date": 1781582135652,
-            "name": "/root/sql-playground/backend/logs/http-2026-06-16.log",
-            "hash": "2c67e255bfff6e6c5d3808cd1a9ba918803c92acf3335ff6ddf4bd5aef1e0648"
+            "date": 1782324087433,
+            "name": "/root/sql-playground/backend/logs/http-2026-06-24.log",
+            "hash": "6879af024216a1d13eecd336eababfda27d045f39606513f14fc1838e84c4c9c"
         },
         {
-            "date": 1781667220101,
-            "name": "/root/sql-playground/backend/logs/http-2026-06-17.log",
-            "hash": "191b19e64f614ec622e4b0d13d030fe198ee1787d1b2639321b90279d8d09202"
+            "date": 1782364266475,
+            "name": "/root/sql-playground/backend/logs/http-2026-06-25.log",
+            "hash": "4142a57b4dcdc278996f3be381a49a3d3fb3e9c577341006e74b854baf9a19b5"
         }
     ],
     "hashType": "sha256"

@@ -3,6 +3,7 @@ import {
   ThemeProvider, CssBaseline,
   Box, AppBar, Toolbar, Typography, IconButton, Tabs, Tab, Chip,
   Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
+  Snackbar, Alert,
 } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -39,6 +40,17 @@ export default function InstructorDashboard() {
   const [semesters, setSemesters] = useState([]);
   const [confirm,   setConfirm]   = useState(null);
   const [theme,     setTheme]     = useState(() => localStorage.getItem('sql_playground_theme') || 'dark');
+  const [expiredMsg, setExpiredMsg] = useState(false);
+
+  // Handle JWT expiry
+  useEffect(() => {
+    function onExpired() {
+      setExpiredMsg(true);
+      setTimeout(() => { window.location.href = '/instructor/login'; }, 2500);
+    }
+    window.addEventListener('auth:expired', onExpired);
+    return () => window.removeEventListener('auth:expired', onExpired);
+  }, []);
 
   useEffect(() => { localStorage.setItem('sql_playground_theme', theme); }, [theme]);
 
@@ -113,6 +125,15 @@ export default function InstructorDashboard() {
       </Box>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      <Snackbar
+        open={expiredMsg}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity="warning" sx={{ width: '100%' }}>
+          Your session has expired. Redirecting to login…
+        </Alert>
+      </Snackbar>
     </ThemeProvider>
   );
 }
